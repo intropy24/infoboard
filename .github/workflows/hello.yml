@@ -1,0 +1,12 @@
+name: Hello scheduler
+
+on:
+  schedule:
+    - cron: "*/2 * * * *"
+  workflow_dispatch:
+
+jobs:
+  hello:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "hello, scheduler $(date -u)"
