@@ -433,7 +433,7 @@ def collect_student(
             if isinstance(teacher_seen, datetime):
                 push_after: datetime | None = None
                 later = [d for d in push_dates if d > teacher_seen]
-                push_after = later[0] if later else None
+                push_after = later[-1] if later else None
                 arrived_after = push_after is not None or (
                     bool(student_commits) and student_commits[-1][1] > teacher_seen
                 )
@@ -477,7 +477,7 @@ def collect_student(
                 pend = pend or student_commits
             else:
                 starts = [d for d in (*push_dates, p.created_at) if isinstance(d, datetime)]
-                waiting_start = starts[0] if starts else p.updated_at
+                waiting_start = max(starts) if starts else p.updated_at
                 pend = student_commits
             pending = len(pend)
             pend_add = sum(line_by_sha[sha][0] for _, _, sha, _ in pend)
