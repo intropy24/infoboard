@@ -1,0 +1,3 @@
+# зафиксировано под локальный venv (python 3.11+)
+githubkit==0.16.1
+pydantic-settings==2.16.1

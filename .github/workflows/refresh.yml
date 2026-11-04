@@ -1,0 +1,74 @@
+name: Refresh info board
+
+on:
+  schedule:
+    # каждые 30 минут; GitHub может сдвигать cron-запуски на несколько минут
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      # кэши живут в Actions cache, в репо не коммитятся. Если GitHub их
+      # когда-нибудь выпилит — прогрев заново: stats за секунды, события за
+      # то, что ещё видно в Events API
+      - uses: actions/cache@v4
+        with:
+          path: |
+            events-cache.json
+            commit-stats-cache.json
+          key: caches-${{ github.run_id }}
+          restore-keys: caches-
+
+      - name: Сборка отчёта
+        env:
+          # PAT преподавателя: только читает студенческие репо организации
+          GH_PAT: ${{ secrets.GH_PAT }}
+          GH_ORG: intropy24
+        run: python labs_review_queue.py --md > report.md
+
+      - name: Сборка сайта
+        run: |
+          # при крахе скрипта (например, лимит API) stdout пуст — не деплоим мусор
+          grep -q '^# Очередь лабораторных' report.md || {
+            echo "Отчёт пустой/битый — пропускаем деплой"; exit 1;
+          }
+          # Jekyll требует front matter, иначе index.md отдаётся сырым текстом
+          printf -- '---\nlayout: default\n---\n' | cat - report.md > site/index.md
+
+      - uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./site
+          output: ./_site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
