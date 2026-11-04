@@ -207,6 +207,10 @@ def fmt_date(iso: str) -> str:
     return datetime.fromisoformat(iso).astimezone(MSK).strftime("%d.%m.%Y")
 
 
+def repo_url(org: str, student: str) -> str:
+    return f"https://github.com/{org}/{org}-{student}"
+
+
 def lines_per_hour(points: list[tuple[datetime, int]]) -> tuple[int, int, int] | None:
     pts = sorted(points)
     rates = []
@@ -608,7 +612,7 @@ def report_md(
     if not queue:
         print("Пусто — все PR'ы проверены ✅")
     else:
-        print("| № | Студент | Ветка | Коммитов (ждут/всего) | +/− | Ревью | Ждёт | С (МСК) | ⚡ стр/ч (ср/макс·инт) |")
+        print("| № | Студент | PR | Коммитов (ждут/всего) | +/− | Ревью | Ждёт | С (МСК) | ⚡ стр/ч (ср/макс·инт) |")
         print("|---:|:---|:---|---:|---:|:---|---:|:---:|:---:|")
         for i, item in enumerate(queue, start=1):
             draft = " 🚧" if item.draft else ""
@@ -616,7 +620,7 @@ def report_md(
             speed = f"{item.speed[0]}/{item.speed[1]} ({item.speed[2]})" if item.speed else "—"
             comm = f"{item.commits}/{item.commits_all}" if item.commits_all is not None else (item.commits if item.commits is not None else "—")
             print(
-                f"| {i} | {item.student} | [`{item.branch}`]({item.pr_url}) | "
+                f"| {i} | [{item.student}]({repo_url(org, item.student)}) | [`{item.branch}`]({item.pr_url}) | "
                 f"{comm} | {plus_minus} | {item.review_state}{draft} | "
                 f"{item.age} | {fmt_dt(item.waiting_since) or '—'} | {speed} |"
             )
@@ -628,22 +632,22 @@ def report_md(
         if silent:
             print("## Ожидаются исправления")
             print()
-            print("| № | Студент | Ветка | Ревью | convs | Давность | С (МСК) |")
+            print("| № | Студент | PR | Ревью | convs | Давность | С (МСК) |")
             print("|---:|:---|:---|:---|---:|---:|:---:|")
             for i, item in enumerate(silent, start=1):
                 print(
-                    f"| {i} | {item.student} | [`{item.branch}`]({item.pr_url}) | "
+                    f"| {i} | [{item.student}]({repo_url(org, item.student)}) | [`{item.branch}`]({item.pr_url}) | "
                     f"{item.review_state} | {item.unresolved if item.unresolved is not None else '—'} | {item.age} | {fmt_dt(item.waiting_since) or '—'} |"
                 )
             print()
         if answered:
             print("## Препод ответил, студент отделался комментарием без правок")
             print()
-            print("| № | Студент | Ветка | Ревью | Давность | Ревью с | Ответ студента с |")
+            print("| № | Студент | PR | Ревью | Давность | Ревью с | Ответ студента с |")
             print("|---:|:---|:---|:---|---:|:---:|:---:|")
             for i, item in enumerate(answered, start=1):
                 print(
-                    f"| {i} | {item.student} | [`{item.branch}`]({item.pr_url}) | "
+                    f"| {i} | [{item.student}]({repo_url(org, item.student)}) | [`{item.branch}`]({item.pr_url}) | "
                     f"{item.review_state} | {item.age} | {fmt_date(item.waiting_since) or '—'} | {fmt_date(item.student_after)} |"
                 )
             print()
@@ -654,7 +658,7 @@ def report_md(
         print("| Студент | Ветка | Давность | Последний коммит |")
         print("|:---|:---|---:|:---:|")
         for item in sorted(no_pr, key=lambda it: it.waiting_since or it.updated_at):
-            print(f"| {item.student} | `{item.branch}` | {item.age} | {fmt_date(item.updated_at) or '—'} |")
+            print(f"| [{item.student}]({repo_url(org, item.student)}) | `{item.branch}` | {item.age} | {fmt_date(item.updated_at) or '—'} |")
         print()
 
     print("## Статистика по студентам")
@@ -665,7 +669,7 @@ def report_md(
         labs = ",".join(str(n) for n in sorted(st.lab_numbers)) or "—"
         lines = f"+{st.lines_add}/-{st.lines_del}" if (st.lines_add or st.lines_del) else "—"
         print(
-            f"| {i} | {st.student} | {labs} | {st.open_prs or '—'} | {st.merged or '—'} | {st.declined or '—'} | "
+            f"| {i} | [{st.student}]({repo_url(org, st.student)}) | {labs} | {st.open_prs or '—'} | {st.merged or '—'} | {st.declined or '—'} | "
             f"{st.awaiting_commits or '—'} | {lines} | {st.commits_total or '—'} | {st.pushes or '—'} |"
         )
     print()
