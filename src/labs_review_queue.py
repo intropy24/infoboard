@@ -201,12 +201,6 @@ def fmt_dt(iso: str) -> str:
     return datetime.fromisoformat(iso).astimezone(MSK).strftime("%d.%m.%Y %H:%M")
 
 
-def fmt_date(iso: str) -> str:
-    if not iso:
-        return ""
-    return datetime.fromisoformat(iso).astimezone(MSK).strftime("%d.%m.%Y")
-
-
 def repo_url(org: str, student: str) -> str:
     return f"https://github.com/{org}/{org}-{student}"
 
@@ -560,17 +554,17 @@ def report(
                     f"{_pad(item.review_state, 16)}— ревью с {fmt_dt(item.waiting_since)}, 🧵 convs.: {threads:>2}"
                 )
         if answered:
-            print("\n=== Препод ответил, студент отделался комментарием без правок ===")
+            print("\n=== Прокомментировано студентом ===")
             for i, item in enumerate(answered, start=1):
                 print(
                     f"{i:>3}. 💬 {item.age:<8} {item.student:<18} {item.branch:<26} "
-                    f"{_pad(item.review_state, 16)}— ревью с {fmt_date(item.waiting_since)}, ответ студента с {fmt_date(item.student_after)}"
+                    f"{_pad(item.review_state, 16)}— ревью с {fmt_dt(item.waiting_since)}, ответ студента с {fmt_dt(item.student_after)}"
                 )
 
     if no_pr:
         print("\n=== Lab-ветки без PR ===")
         for item in sorted(no_pr, key=lambda it: it.waiting_since or it.updated_at):
-            print(f"      ⏳ {item.age:<8} {item.student:<18} {item.branch} (последний коммит {fmt_date(item.updated_at)})")
+            print(f"      ⏳ {item.age:<8} {item.student:<18} {item.branch} (последний коммит {fmt_dt(item.updated_at)})")
 
     print(f"\n=== Статистика по студентам ({org}) ===")
     header = (
@@ -603,7 +597,7 @@ def report_md(
     queue: list[QueueItem], reviewed: list[QueueItem], no_pr: list[QueueItem], stats: list[StudentStats], org: str, failed: int
 ) -> None:
     queue.sort(key=lambda item: item.waiting_since or item.updated_at)
-    print(f"# Очередь лабораторных — {org}")
+    print(f"# {org}")
     print()
     print(f"_Обновлено: {datetime.now(MSK):%d.%m.%Y %H:%M} МСК_")
     print()
@@ -641,14 +635,14 @@ def report_md(
                 )
             print()
         if answered:
-            print("## Препод ответил, студент отделался комментарием без правок")
+            print("## Прокомментировано студентом")
             print()
             print("| № | Студент | PR | Ревью | Давность | Ревью с | Ответ студента с |")
             print("|---:|:---|:---|:---|---:|:---:|:---:|")
             for i, item in enumerate(answered, start=1):
                 print(
                     f"| {i} | <a class=\"student\" href=\"{repo_url(org, item.student)}\">{item.student}</a> | [`{item.branch}`]({item.pr_url}) | "
-                    f"{item.review_state} | {item.age} | {fmt_date(item.waiting_since) or '—'} | {fmt_date(item.student_after)} |"
+                    f"{item.review_state} | {item.age} | {fmt_dt(item.waiting_since) or '—'} | {fmt_dt(item.student_after)} |"
                 )
             print()
 
@@ -658,7 +652,7 @@ def report_md(
         print("| Студент | Ветка | Давность | Последний коммит |")
         print("|:---|:---|---:|:---:|")
         for item in sorted(no_pr, key=lambda it: it.waiting_since or it.updated_at):
-            print(f"| <a class=\"student\" href=\"{repo_url(org, item.student)}\">{item.student}</a> | `{item.branch}` | {item.age} | {fmt_date(item.updated_at) or '—'} |")
+            print(f"| <a class=\"student\" href=\"{repo_url(org, item.student)}\">{item.student}</a> | `{item.branch}` | {item.age} | {fmt_dt(item.updated_at) or '—'} |")
         print()
 
     print("## Статистика по студентам")

@@ -48,7 +48,7 @@ jobs:
       - name: Сборка сайта
         run: |
           # при крахе скрипта (например, лимит API) stdout пуст — не деплоим мусор
-          grep -q '^# Очередь лабораторных' report.md || {
+          grep -q '^# intropy24' report.md || {
             echo "Отчёт пустой/битый — пропускаем деплой"; exit 1;
           }
           # Jekyll требует front matter, иначе index.md отдаётся сырым текстом
