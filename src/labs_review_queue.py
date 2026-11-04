@@ -1,44 +1,3 @@
-"""Очередь лабораторных на проверку по всем студенческим репо организации.
-
-1 лаба = 1 ветка вида lab-<NN>-<название>; на неё должен быть открыт PR.
-Отчёт: чем флаг --md, тем рендер: без него — обычный текст для терминала,
-с --md — Markdown на stdout (прогресс и ошибки — в stderr), чтобы вывод
-можно было перенаправлять прямо в README дашборд-репо.
-  * очередь на проверку — открытые PR'ы, которые преподаватель ещё НЕ смотрел
-    (давность с залива), или после его ревью студент запушил новые коммиты
-    (давность с первого пуша после ревью); PR'ы, где преподаватель оставил ревью,
-    а новых пушей не было — в отдельную секцию: они ждут студента, а не препода
-    (с числом неразрешённых тредов ревью из GraphQL);
-    коммиты преподавателя (sync из base, merge main) не считаются: они не ждут
-    проверки и не возвращают PR в очередь; в строке очереди коммиты и +/- —
-    только непроверенные коммиты (после ревью), а не вся ветка, и показываются
-    дробью «ждут/всего»;
-  * lab-ветки без PR (студент, видимо, ещё не оформил сдачу);
-  * статистика по студентам (лабы — только живые: с открытым/влитым PR или ещё без PR;
-    ветки с полностью закрытыми PR не считаются; ждут/слито/отклонено, коммиты на
-    проверку, объём сделанной работы — строки +/- и коммиты по всем студенческим
-    коммитам (churn, sync преподавателя не считается, общие коммиты lab-веток —
-    один раз) и число пушей в lab-ветки по Events API — по actor события,
-    web-создание ветки тоже считается пушем; события кэшируются в
-    events-cache.json — API отдаёт только ~90 дней/300 последних событий,
-    а они ещё и запаздывают)
-    и общая; сортировка — только по строкам, затем по числу коммитов.
-
-Скорость работы (колонка ⚡ в очереди) — сырые данные без коэффициентов: для
-соседних студенческих коммитов PR'а (по author-датам) темп = добавленные строки
-более позднего коммита / прошедшее время; до первого коммита писать могли когда
-угодно — он только точка отсчёта. Среднее = все строки / всё время, плюс максимум
-по интервалам и их число (мало интервалов — слабый сигнал). Это повод задать
-вопросы, не доказательство.
-Число добавленных/удалённых строк по каждому коммиту кэшируется в
-commit-stats-cache.json: commit-объекты неизменны, повторные запросы не нужны.
-
-В этом репо скрипт — сердце дашборда: Actions каждые полчаса (см.
-.github/workflows/refresh.yml) гоняют «--md > README.md» и коммитят результат
-вместе с кэшами. Локально (из корня репо, нужен .env с GH_PAT):
-    python labs_review_queue.py --md > README.md
-"""
-
 import argparse
 import json
 import re
@@ -57,8 +16,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LAB_BRANCH_RE = re.compile(r"^lab-[0-9]{2}([-.].*)?$")
 
-# локальный архив push-событий: Events API отдаёт только ~90 дней истории,
-# дописываем при каждом запуске и со временем копим полную картину
 EVENTS_CACHE_PATH = Path(__file__).resolve().parent / "events-cache.json"
 STATS_CACHE_PATH = Path(__file__).resolve().parent / "commit-stats-cache.json"
 
@@ -71,7 +28,6 @@ REVIEW_MARKS = {
 
 
 class Settings(BaseSettings):
-    # в CI только из env (секрет GH_PAT); .env — для локальных прогонов
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     gh_pat: str = Field(..., alias="GH_PAT")
@@ -98,18 +54,18 @@ class QueueItem:
     pr_number: int | None
     pr_url: str
     title: str
-    updated_at: str  # iso, '' если неизвестно
+    updated_at: str
     age: str
     commits: int | None
     additions: int | None
     deletions: int | None
     review_state: str
     draft: bool
-    commits_all: int | None = None  # всего студенческих коммитов в ветке (⬇ждут/всего)
-    speed: tuple[int, int, int] | None = None  # ⚡ стр/ч: (средневзвешенное, максимум, интервалов)
-    waiting_since: str = ""  # iso: с какого момента ждёт проверки (последнее действие преподавателя или залив)
-    student_after: str = ""  # iso: комментарий студента после ревью препода ('' — молчит)
-    unresolved: int | None = None  # неразрешённые треды ревью в PR (только для секции ожиданий)
+    commits_all: int | None = None
+    speed: tuple[int, int, int] | None = None
+    waiting_since: str = ""
+    student_after: str = ""
+    unresolved: int | None = None
 
 
 @dataclass
@@ -132,8 +88,6 @@ def format_age(dt: datetime, now: datetime) -> tuple[str, float]:
 
 
 def commit_is_teacher(c, teacher: str) -> bool:
-    # преподавательские коммиты (sync из base, web-правки, merge base в ветку) не ждут
-    # проверки; GitHub web подписывает их id-prefix'ом вида "123+login@users.noreply..."
     login = c.author.login if c.author is not None else None
     email = c.commit.author.email if c.commit.author is not None else None
     return login == teacher or bool(email) and (
@@ -162,10 +116,6 @@ def iter_pulls(gh: GitHub, owner: str, repo: str) -> Iterator:
 
 
 def review_summary(reviews: list, teacher: str) -> tuple[str, datetime | None, str | None, list[datetime]]:
-    # вердикт последнего ревью препода, его время, head-коммит на момент ревью
-    # (commit_id привязывается к моменту начала ревью, а не submit — использовать
-    # только вместе с проверкой, что head реально прилетел позже) + время ревью
-    # всех остальных (кнопка Comment у студента — тоже review)
     foreign = [
         r.submitted_at
         for r in reviews
@@ -187,8 +137,6 @@ def review_summary(reviews: list, teacher: str) -> tuple[str, datetime | None, s
 def student_comment_after(
     teacher: str, since: datetime, review_times: list[datetime], issue_comments: list, review_comments: list
 ) -> datetime | None:
-    # самое свежее действие студента после ревью препода, не требующее проверки:
-    # комментарии под PR и в трях, и его ревью-комментарии (всё уже собрано заранее)
     times = [t for t in review_times if t > since]
     for batch in (issue_comments, review_comments):
         times += [
@@ -201,13 +149,11 @@ def student_comment_after(
 
 
 def pushed_at(repo_events: list[dict], head_sha: str) -> datetime | None:
-    # серверное время, когда указанный коммит стал head'ом ветки (PushEvent его не подделает)
     dates = [datetime.fromisoformat(e["date"]) for e in repo_events if e["head"] == head_sha]
     return max(dates) if dates else None
 
 
 def commit_line_stats(gh: GitHub, owner: str, repo: str, sha: str, cache: dict, parsed=None) -> tuple[int, int]:
-    # добавлено/удалено в коммите (churn); commit-объект неизменен — кэшируем навсегда
     key = f"{owner}/{repo}/{sha}"
     hit = cache.get(key)
     if hit is not None:
@@ -222,9 +168,6 @@ def commit_line_stats(gh: GitHub, owner: str, repo: str, sha: str, cache: dict, 
 
 
 def unresolved_threads(gh: GitHub, owner: str, repo: str, number: int) -> int | None:
-    # неразрешённые треды ревью в PR; REST-апи статус разрешения не отдаёт — только
-    # GraphQL; треды резолвятся со временем — не кэшируем; при ошибке — None,
-    # чтобы второстепенная колонка не ломала весь отчёт
     query = (
         "query($o:String!,$r:String!,$n:Int!){ repository(owner:$o,name:$r)"
         "{ pullRequest(number:$n){ reviewThreads(first:100){ nodes{ isResolved } } } } }"
@@ -238,10 +181,6 @@ def unresolved_threads(gh: GitHub, owner: str, repo: str, number: int) -> int | 
 
 
 def student_push_count(repo_events: list[dict], student: str, student_shas: set[str]) -> int:
-    # пуш студента в lab-ветку: пуши и web-создания ветки (CreateEvent — GitHub
-    # иногда не генерит PushEvent при этом) считаем по actor события; пулер ищется
-    # по actor == student, пуши препода (sync и пр.) отсекаются сами; для старых
-    # кэшевых записей без actor — фолбэк по head-коммиту из студенческих sha
     n = 0
     for e in repo_events:
         if not LAB_BRANCH_RE.match((e.get("ref") or "").removeprefix("refs/heads/")):
@@ -254,19 +193,12 @@ def student_push_count(repo_events: list[dict], student: str, student_shas: set[
 
 
 def fmt_dt(iso: str) -> str:
-    # iso → «03.11.2026 09:05» (таблицы читают люди, не машины); время — UTC,
-    # как и в строке «Обновлено»; '' на пустом входе
     if not iso:
         return ""
     return datetime.fromisoformat(iso).astimezone(UTC).strftime("%d.%m.%Y %H:%M")
 
 
 def lines_per_hour(points: list[tuple[datetime, int]]) -> tuple[int, int, int] | None:
-    # (author-дата, добавленные строки) студенческих коммитов одного PR'а.
-    # Темп между соседними author-датами = строки более позднего коммита /
-    # прошедшее время; до первого коммита время написания измерить нельзя — он
-    # только точка отсчёта. Одновременные коммиты (dt=0) не измеримы — без
-    # интервала. Возвращает (средневзвешенное, максимум, число интервалов) стр/ч.
     pts = sorted(points)
     rates = []
     for (t_prev, _), (t, a) in pairwise(pts):
@@ -280,10 +212,6 @@ def lines_per_hour(points: list[tuple[datetime, int]]) -> tuple[int, int, int] |
 
 
 def merge_events(events_cache: dict, owner: str, repo: str, pages: list[list]) -> list[dict]:
-    # PushEvent + CreateEvent (создание lab-ветки через web UI проходит без PushEvent);
-    # события дедуплицируются по id и переживают обрезание 90-дневного окна API;
-    # ref/actor нужны для подсчёта пушей — старые кэшевые записи без них дозаполняются,
-    # пока событие ещё в видимом окне API
     known = events_cache.setdefault(f"{owner}/{repo}", [])
     by_id = {e["id"]: e for e in known}
     for events in pages:
@@ -295,7 +223,6 @@ def merge_events(events_cache: dict, owner: str, repo: str, pages: list[list]) -
                 continue
             actor = ev.actor.login if ev.actor is not None else None
             if old := by_id.get(ev.id):
-                # старые записи обогатились деталями, пока событие ещё в окне API
                 if not old.get("ref") and ref:
                     old["ref"] = ref
                 if not old.get("actor") and actor:
@@ -318,23 +245,9 @@ def collect_student(
     gh: GitHub, owner: str, repo: str, prefix: str, now: datetime, events_cache: dict,
     teacher: str, stat_cache: dict, pool: ThreadPoolExecutor,
 ) -> tuple[list[QueueItem], list[QueueItem], list[QueueItem], StudentStats]:
-    """Открытые PR'ы (очередь), PR'ы после ревью (ждут студента), lab-ветки без PR,
-    статистика по студенту.
-
-    Преподаватель оставил ревью и новых пушей не было — PR НЕ в очереди: мяч на стороне
-    студента. Новый пуш после ревью возвращает PR в очередь (ждать с первого пуша после
-    ревью). Ревью не было — ждать с залива (создание PR / самый ранний найденный пуш).
-    Комментарий студента после ревью (без пуша) — поле student_after, отдельная подсекция.
-
-    Всё HTTP — в фазе gather (независимые запросы параллельно через pool), сборка —
-    чистая логика на готовых данных; latency одного репо ≈ 2-3 RTT вместо ~10.
-    """
     student = repo.removeprefix(f"{prefix}-")
     stats = StudentStats(student=student)
-    # sha студенческих коммитов со всех веток — по ним атрибутируем пуши
     student_shas: set[str] = set()
-    # sha уже засчитанных в статистику коммитов: студент мог ответитьвить lab-02 от
-    # lab-01 — общие коммиты двух PR'ов не должны считаться дважды
     stat_shas: set[str] = set()
 
     def get_branches() -> list[tuple[str, str]]:
@@ -361,8 +274,6 @@ def collect_student(
     def get_commit_parsed(sha: str):
         return gh.rest.repos.get_commit(owner, repo, sha).parsed_data
 
-    # ---- gather: волна A — всё, что нужно для навигации по репо ----
-    # все три страницы событий сразу: лишний запрос на пустую страницу дешевле лишнего RTT
     f_events = [pool.submit(gh.rest.activity.list_repo_events, owner, repo, per_page=100, page=p) for p in (1, 2, 3)]
     f_branches = pool.submit(get_branches)
     f_pulls = pool.submit(list, iter_pulls(gh, owner, repo))
@@ -383,7 +294,7 @@ def collect_student(
         candidates = pr_by_branch.get(name, [])
         if not candidates:
             f_cmp[name] = pool.submit(gh.rest.repos.compare_commits, owner, repo, f"main...{sha}")
-            f_head[name] = pool.submit(get_commit_parsed, sha)  # фолбэк, если ahead пуст
+            f_head[name] = pool.submit(get_commit_parsed, sha)
             continue
         for p in candidates:
             if p.state == "open":
@@ -391,10 +302,9 @@ def collect_student(
                 f_iss[p.number] = pool.submit(pr_comments, gh.rest.issues.list_comments, p.number)
                 f_rc[p.number] = pool.submit(pr_comments, gh.rest.pulls.list_review_comments, p.number)
             elif p.merged_at is None:
-                continue  # отклонённый — только счётчик в сборке
+                continue
             f_commits[p.number] = pool.submit(pr_commits, p.number)
 
-    # события домерживаем, пока летит волна B (её результаты забираем ниже)
     repo_events = merge_events(events_cache, owner, repo, [f.result().parsed_data for f in f_events])
 
     reviews_by_pr = {n: f.result().parsed_data for n, f in f_reviews.items()}
@@ -403,7 +313,6 @@ def collect_student(
     commits_by_pr = {n: f.result() for n, f in f_commits.items()}
     ahead_by_branch = {n: f.result().parsed_data.commits or [] for n, f in f_cmp.items()}
 
-    # волна 2: строки коммитов (только промахи кэша) и коммиты lab-веток без PR
     f_stats = [
         pool.submit(commit_line_stats, gh, owner, repo, c.sha, stat_cache)
         for commits in commits_by_pr.values()
@@ -418,8 +327,6 @@ def collect_student(
     for f in f_stats:
         f.result()
     getc = {sha: f.result() for sha, f in f_getc.items()}
-    # волна 2.5: неразрешённые треды — только для PR'ов с ревью преподавателя (секция
-    # ожиданий); статус меняется со временем, поэтому живьём и без кэша
     f_threads = {
         n: pool.submit(unresolved_threads, gh, owner, repo, n)
         for n, revs in reviews_by_pr.items()
@@ -427,7 +334,6 @@ def collect_student(
     }
     threads_by_pr = {n: f.result() for n, f in f_threads.items()}
 
-    # ---- сборка: чистая логика на уже скачанных данных ----
     queue: list[QueueItem] = []
     reviewed: list[QueueItem] = []
     no_pr: list[QueueItem] = []
@@ -441,11 +347,8 @@ def collect_student(
         if not candidates:
             if lab_number not in stats.lab_numbers:
                 stats.lab_numbers.append(lab_number)
-            # head lab-ветки может быть нашим sync-коммитом: смотрим все коммиты
-            # ветки относительно main, в зачёт (возраст, строки, коммиты) идут только
-            # студенческие
             own: tuple[str, datetime | None] | None = None
-            for c in reversed(ahead_by_branch[name]):  # ahead — от старых к новым; ищем последний студенческий
+            for c in reversed(ahead_by_branch[name]):
                 fullc = getc[c.sha]
                 if commit_is_teacher(fullc, teacher):
                     continue
@@ -463,7 +366,6 @@ def collect_student(
             if own is not None:
                 date = pushed_at(repo_events, own[0]) or own[1] or now
             else:
-                # вся ветка — преподавательские коммиты: время по head
                 commit = (getc[sha] if sha in getc else f_head[name].result()).commit
                 committer = commit.committer or commit.author
                 raw_date = committer.date if committer is not None else None
@@ -474,20 +376,14 @@ def collect_student(
                 waiting_since=date.isoformat(),
             ))
             continue
-        # лаба засчитывается только за живую ветку: открытый или влитый PR; если все PR
-        # ветки закрыты без мержа (залил по ошибке и закрыл) — считаем, что лабы нет;
-        # новый PR на той же ветке вернёт лабу в зачёт
         if lab_number not in stats.lab_numbers and any(
             p.state == "open" or p.merged_at is not None for p in candidates
         ):
             stats.lab_numbers.append(lab_number)
-        # статистика — по всем PR'ам ветки (отклонённый + пересдача на той же ветке),
-        # в очередь попадают открытые (обычно ровно один — самый свежий)
         for p in candidates:
             if p.state != "open":
                 if p.merged_at is not None:
                     stats.merged += 1
-                    # влитая работа — тоже объём студента: его коммиты и строки в зачёт
                     for c in commits_by_pr[p.number]:
                         if commit_is_teacher(c, teacher):
                             continue
@@ -502,7 +398,6 @@ def collect_student(
                 else:
                     stats.declined += 1
                 continue
-            # (author_date, committer_date, sha, ours) — ours: коммит преподавателя (sync и пр.)
             commits: list[tuple[datetime, datetime, str, bool]] = []
             for c in commits_by_pr[p.number]:
                 raw_a = c.commit.author.date if c.commit.author is not None else None
@@ -513,8 +408,6 @@ def collect_student(
                 commits.append((a, raw_c if isinstance(raw_c, datetime) else a, c.sha, commit_is_teacher(c, teacher)))
             shas = {sha for _, _, sha, _ in commits}
             ours_shas = {sha for _, _, sha, ours in commits if ours}
-            # push-событие относится к ветке, если её head — коммит ветки; пуши, где head —
-            # только наши коммиты (sync), студенческой активностью не считаются
             branch_pushes = [
                 (datetime.fromisoformat(e["date"]), e["size"])
                 for e in repo_events
@@ -522,9 +415,6 @@ def collect_student(
             ]
             student_commits = [t for t in commits if not t[3]]
             student_shas.update(sha for _, _, sha, _ in student_commits)
-            # объём PR'а считаем студенческим churn'ем (как в статистике), а не diff'ом
-            # PR'а: в diff'ом сидят sync-коммиты преподавателя — отсюда «-28» в очереди при
-            # «-0» в статистике; в статистику общие с другими lab-ветками коммиты — один раз
             line_by_sha: dict[str, tuple[int, int]] = {}
             for _, _, c_sha, _ in student_commits:
                 a_, d_ = commit_line_stats(gh, owner, repo, c_sha, stat_cache)
@@ -537,7 +427,6 @@ def collect_student(
                 stats.lines_del += d_
             pr_add = sum(a for a, _ in line_by_sha.values())
             pr_del = sum(d for _, d in line_by_sha.values())
-            # ⚡ сырой темп по всему студенческому коммит-графику ветки (не только pending)
             speed = lines_per_hour([(a, line_by_sha[sha][0]) for a, _, sha, _ in student_commits])
             review_mark, teacher_seen, teacher_commit, foreign_reviews = review_summary(reviews_by_pr[p.number], teacher)
             push_dates = sorted(d for d, _ in branch_pushes)
@@ -545,21 +434,14 @@ def collect_student(
                 push_after: datetime | None = None
                 later = [d for d in push_dates if d > teacher_seen]
                 push_after = later[0] if later else None
-                # доказательство нового после ревью — приход студенческих данных позже
-                # него: серверный пуш или committer-дата (её student не подделывает)
                 arrived_after = push_after is not None or (
                     bool(student_commits) and student_commits[-1][1] > teacher_seen
                 )
                 if teacher_commit is not None:
-                    # GitHub фиксирует commit_id ревью на момент открытия формы, а не submit:
-                    # mismatch с head бывает и когда после проверки ничего не прилетало
-                    # (head старее ревью — преподаватель его видел). Mismatch без arrived_after —
-                    # не новый пуш, PR по-прежнему ждёт студента.
                     changed = teacher_commit != p.head.sha and arrived_after
                 else:
                     changed = arrived_after
                 if not changed:
-                    # проверка не нужна, PR ждёт студента; комментарий студента фиксируем отдельно
                     comment = student_comment_after(
                         teacher, teacher_seen, foreign_reviews, iss_by_pr[p.number], rc_by_pr[p.number]
                     )
@@ -584,25 +466,19 @@ def collect_student(
                         unresolved=threads_by_pr.get(p.number),
                     ))
                     continue
-                # очередь после ревью: ждать с первого пуша после него; события молчат —
-                # фолбэк на committer-дату последнего студенческого коммита
                 if push_after is None and student_commits and student_commits[-1][1] > teacher_seen:
                     push_after = student_commits[-1][1]
                 waiting_start = push_after if push_after is not None else teacher_seen
-                # коммитов на проверку: студенческие коммиты после review.commit_id в
-                # истории ветки; sync-коммиты преподавателя проверять не надо; commit_id
-                # потерялся (rebase) — по committer-датам позже ревью
                 order = [sha for _, _, sha, _ in commits]
                 if teacher_commit is not None and teacher_commit in order:
                     pend = [t for t in commits[order.index(teacher_commit) + 1 :] if not t[3]]
                 else:
                     pend = [t for t in commits if not t[3] and t[1] > teacher_seen]
-                # пуш после ревью был, а новые коммиты не опознаны — показываем всю ветку
                 pend = pend or student_commits
             else:
                 starts = [d for d in (*push_dates, p.created_at) if isinstance(d, datetime)]
                 waiting_start = starts[0] if starts else p.updated_at
-                pend = student_commits  # ревью не было — на проверке вся студенческая ветка
+                pend = student_commits
             pending = len(pend)
             pend_add = sum(line_by_sha[sha][0] for _, _, sha, _ in pend)
             pend_del = sum(line_by_sha[sha][1] for _, _, sha, _ in pend)
@@ -631,8 +507,6 @@ def collect_student(
 
 
 def _pad(s: str, width: int) -> str:
-    # паддинг по терминальной ширине: эмодзи (⏳/🔄/💬/🧵/🟢/🚧/⬇ и пр.) рисуются
-    # двумя символами — обычный :<N по таким строкам не попадает
     w = sum(
         2 if 0x2300 <= ord(c) <= 0x27BF or 0x2B00 <= ord(c) <= 0x2BFF or 0x1F000 <= ord(c) <= 0x1FAFF else 1
         for c in s
@@ -643,8 +517,7 @@ def _pad(s: str, width: int) -> str:
 def report(
     queue: list[QueueItem], reviewed: list[QueueItem], no_pr: list[QueueItem], stats: list[StudentStats], org: str, failed: int
 ) -> None:
-    # текстовый рендер для терминала (Markdown — в report_md, под флаг --md)
-    queue.sort(key=lambda item: item.waiting_since or item.updated_at)  # кто дольше всех ждёт преподавателя — тот выше
+    queue.sort(key=lambda item: item.waiting_since or item.updated_at)
     print("=== Очередь на проверку ===")
     if not queue:
         print("  пусто — все(PR'ы) проверены")
@@ -663,7 +536,7 @@ def report(
         )
 
     if reviewed:
-        silent = sorted((it for it in reviewed if not it.student_after), key=lambda it: it.waiting_since)  # ревью раньше — дольше ждём — выше
+        silent = sorted((it for it in reviewed if not it.student_after), key=lambda it: it.waiting_since)
         answered = sorted((it for it in reviewed if it.student_after), key=lambda it: it.waiting_since)
         if silent:
             print("\n=== Ожидаются исправления ===")
@@ -710,15 +583,13 @@ def report(
 
 
 def _stat_order(s: StudentStats) -> tuple:
-    # только объём работы: строки, затем коммиты
     return (-(s.lines_add + s.lines_del), -s.commits_total, s.student)
 
 
 def report_md(
     queue: list[QueueItem], reviewed: list[QueueItem], no_pr: list[QueueItem], stats: list[StudentStats], org: str, failed: int
 ) -> None:
-    # Markdown на stdout: вывод перенаправляется прямо в README (labs_review_queue.py --md > README.md)
-    queue.sort(key=lambda item: item.waiting_since or item.updated_at)  # кто дольше всех ждёт преподавателя — тот выше
+    queue.sort(key=lambda item: item.waiting_since or item.updated_at)
     print(f"# Очередь лабораторных — {org}")
     print()
     print(f"_Обновлено: {datetime.now(UTC):%Y-%m-%d %H:%M} UTC_")
@@ -743,7 +614,7 @@ def report_md(
     print()
 
     if reviewed:
-        silent = sorted((it for it in reviewed if not it.student_after), key=lambda it: it.waiting_since)  # ревью раньше — дольше ждём — выше
+        silent = sorted((it for it in reviewed if not it.student_after), key=lambda it: it.waiting_since)
         answered = sorted((it for it in reviewed if it.student_after), key=lambda it: it.waiting_since)
         if silent:
             print("## Ожидаются исправления")
@@ -807,11 +678,10 @@ def main() -> None:
 
     settings = QueueSettings()  # type: ignore
     gh = GitHub(settings.gh_pat)
-    teacher = gh.rest.users.get_authenticated().parsed_data.login  # владелец PAT = преподаватель
+    teacher = gh.rest.users.get_authenticated().parsed_data.login
     now = datetime.now(UTC)
 
     students = [r.name for r in iter_org_repos(gh, settings.gh_org) if r.name.startswith(f"{settings.gh_org}-")]
-    # в --md режиме stdout — только Markdown для README, всё остальное в stderr
     log = sys.stderr if args.md else sys.stdout
     print(f"Org {settings.gh_org}: {len(students)} student repos\n", file=log)
 
@@ -824,20 +694,12 @@ def main() -> None:
     stats: list[StudentStats] = []
     failed = 0
 
-    # репозитории обрабатываются параллельно: всё время уходит в HTTP, а кэши
-    # (events/stat) мапаются по имени репо — ключи между потоками не пересекаются;
-    # на каждый поток свой GitHub-клиент, чтобы нигде не делить httpx-клиент.
-    # GitHub не советует держать больше ~100 одновременных запросов (secondary
-    # rate limit), поэтому при разрастании организации число воркеров надо ограничить
     workers = args.workers or len(students)
 
     def process(repo: str, fpool: ThreadPoolExecutor):
         gh = GitHub(settings.gh_pat)
         return collect_student(gh, settings.gh_org, repo, settings.gh_org, now, cache, teacher, stat_cache, fpool)
 
-    # пул мелких запросов: воркеры репозиториев только кидают в него задачи и ждут,
-    # а задачи ничего не ждут — дедлоков нет; потолок держим в рамках secondary
-    # rate limit GitHub (ориентир: <80 req/s и <100 одновременных запросов)
     with ThreadPoolExecutor(max_workers=workers) as pool, ThreadPoolExecutor(max_workers=48) as fetch_pool:
         futures = {pool.submit(process, repo, fetch_pool): repo for repo in students}
         for fut in as_completed(futures):
@@ -879,7 +741,5 @@ if __name__ == "__main__":
     try:
         main()
     except RateLimitExceeded as e:
-        # основной лимит (5000 запросов/час на токен) восстанавливается сам — ждём сюда
-        # бессмысленно, просто объясняем, сколько осталось
         print(f"GitHub API limit исчерпан, повторить примерно через {round(e.retry_after.total_seconds() / 60) + 1} мин.", file=sys.stderr)
         raise SystemExit(1) from None
