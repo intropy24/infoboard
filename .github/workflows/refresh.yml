@@ -2,7 +2,7 @@ name: Refresh info board
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "7,37 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -42,11 +42,9 @@ jobs:
 
       - name: Сборка сайта
         run: |
-          # при крахе скрипта (например, лимит API) stdout пуст — не деплоим мусор
           grep -q '^# intropy24' report.md || {
             echo "Отчёт пустой/битый — пропускаем деплой"; exit 1;
           }
-          # Jekyll требует front matter, иначе index.md отдаётся сырым текстом
           printf -- '---\nlayout: default\n---\n' | cat - report.md > site/index.md
 
       - uses: actions/jekyll-build-pages@v1
