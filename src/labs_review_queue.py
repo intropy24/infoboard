@@ -66,6 +66,7 @@ class QueueItem:
     waiting_since: str = ""
     student_after: str = ""
     unresolved: int | None = None
+    checks: str = "—"
 
 
 @dataclass
@@ -85,6 +86,25 @@ class StudentStats:
 def format_age(dt: datetime, now: datetime) -> tuple[str, float]:
     delta = now - dt
     return (f"{delta.days}д{f'{delta.seconds // 3600}ч' if delta.seconds >= 3600 else ''}", delta.total_seconds() / 3600)
+
+
+def checks_status(runs) -> str:
+    latest = {}
+    for r in runs:
+        if r.app is None or r.app.slug != "github-actions":
+            continue
+        prev = latest.get(r.name)
+        if prev is None or (r.id or 0) > (prev.id or 0):
+            latest[r.name] = r
+    live = [r for r in latest.values() if r.conclusion not in ("skipped", "neutral")]
+    if not live:
+        return "—"
+    bad = sorted(str(r.name) for r in live if r.conclusion in ("failure", "timed_out", "cancelled", "action_required"))
+    if bad:
+        return "❌ " + ", ".join(bad)
+    if any(r.status != "completed" for r in live):
+        return "⏳ идёт"
+    return "✅"
 
 
 def commit_is_teacher(c, teacher: str) -> bool:
@@ -295,9 +315,11 @@ def collect_student(
     f_rc: dict[int, Future] = {}
     f_cmp: dict[str, Future] = {}
     f_head: dict[str, Future] = {}
+    f_checks: dict[str, Future] = {}
     for name, sha in branches:
         if name in ("main", "master") or not LAB_BRANCH_RE.match(name):
             continue
+        f_checks[name] = pool.submit(gh.rest.checks.list_for_ref, owner, repo, sha, per_page=100)
         candidates = pr_by_branch.get(name, [])
         if not candidates:
             f_cmp[name] = pool.submit(gh.rest.repos.compare_commits, owner, repo, f"main...{sha}")
@@ -319,6 +341,7 @@ def collect_student(
     rc_by_pr = {n: f.result() for n, f in f_rc.items()}
     commits_by_pr = {n: f.result() for n, f in f_commits.items()}
     ahead_by_branch = {n: f.result().parsed_data.commits or [] for n, f in f_cmp.items()}
+    checks_by_branch = {n: checks_status(f.result().parsed_data.check_runs or []) for n, f in f_checks.items()}
 
     f_stats = [
         pool.submit(commit_line_stats, gh, owner, repo, c.sha, stat_cache)
@@ -380,7 +403,7 @@ def collect_student(
             age, _ = format_age(date, now)
             no_pr.append(QueueItem(
                 student, name, None, "", "", date.isoformat(), age, None, None, None, "нет PR", False,
-                waiting_since=date.isoformat(),
+                waiting_since=date.isoformat(), checks=checks_by_branch.get(name, "—"),
             ))
             continue
         if lab_number not in stats.lab_numbers and any(
@@ -471,6 +494,7 @@ def collect_student(
                         waiting_since=teacher_seen.isoformat(),
                         student_after=comment.isoformat() if comment else "",
                         unresolved=threads_by_pr.get(p.number),
+                        checks=checks_by_branch.get(name, "—"),
                     ))
                     continue
                 if push_after is None and student_commits and student_commits[-1][1] > teacher_seen:
@@ -508,6 +532,7 @@ def collect_student(
                 draft=bool(p.draft),
                 speed=speed,
                 waiting_since=waiting_start.isoformat(),
+                checks=checks_by_branch.get(name, "—"),
             ))
     stats.pushes = student_push_count(repo_events, student, student_shas)
     return queue, reviewed, no_pr, stats
@@ -539,7 +564,7 @@ def report(
         print(
             f"{i:>3}. ⏳ {item.age:<8} {item.student:<18} {item.branch:<26} "
             f"{_pad(f'⬇{comm}', 8)} {_pad(plus_minus, 12)} "
-            f"{_pad(f'{item.review_state}{draft}', 16)} {since}{speed}"
+            f"{_pad(f'{item.review_state}{draft}', 16)} {_pad(item.checks, 26)} {since}{speed}"
         )
 
     if reviewed:
@@ -564,7 +589,7 @@ def report(
     if no_pr:
         print("\n=== Lab-ветки без PR ===")
         for item in sorted(no_pr, key=lambda it: it.waiting_since or it.updated_at):
-            print(f"      ⏳ {item.age:<8} {item.student:<18} {item.branch} (последний коммит {fmt_dt(item.updated_at)})")
+            print(f"      ⏳ {item.age:<8} {item.student:<18} {item.branch} (последний коммит {fmt_dt(item.updated_at)}, CI: {item.checks})")
 
     print(f"\n=== Статистика по студентам ({org}) ===")
     header = (
@@ -606,8 +631,8 @@ def report_md(
     if not queue:
         print("Пусто — все PR'ы проверены ✅")
     else:
-        print("| № | Студент | PR | Коммитов (ждут/всего) | +/− | Ревью | Ждёт | С (МСК) | ⚡ стр/ч (ср/макс·инт) |")
-        print("|---:|:---|:---|---:|---:|:---|---:|:---:|:---:|")
+        print("| № | Студент | PR | Коммитов (ждут/всего) | +/− | Ревью | CI | Ждёт | С (МСК) | ⚡ стр/ч (ср/макс·инт) |")
+        print("|---:|:---|:---|---:|---:|:---|:---|---:|:---:|:---:|")
         for i, item in enumerate(queue, start=1):
             draft = " 🚧" if item.draft else ""
             plus_minus = f"+{item.additions}/-{item.deletions}" if item.additions is not None else "—"
@@ -615,7 +640,7 @@ def report_md(
             comm = f"{item.commits}/{item.commits_all}" if item.commits_all is not None else (item.commits if item.commits is not None else "—")
             print(
                 f"| {i} | <a class=\"student\" href=\"{repo_url(org, item.student)}\">{item.student}</a> | [`{item.branch}`]({item.pr_url}) | "
-                f"{comm} | {plus_minus} | {item.review_state}{draft} | "
+                f"{comm} | {plus_minus} | {item.review_state}{draft} | {item.checks} | "
                 f"{item.age} | {fmt_dt(item.waiting_since) or '—'} | {speed} |"
             )
     print()
@@ -649,10 +674,10 @@ def report_md(
     if no_pr:
         print("## Lab-ветки без PR")
         print()
-        print("| Студент | Ветка | Давность | Последний коммит |")
-        print("|:---|:---|---:|:---:|")
+        print("| Студент | Ветка | CI | Давность | Последний коммит |")
+        print("|:---|:---|:---|---:|:---:|")
         for item in sorted(no_pr, key=lambda it: it.waiting_since or it.updated_at):
-            print(f"| <a class=\"student\" href=\"{repo_url(org, item.student)}\">{item.student}</a> | `{item.branch}` | {item.age} | {fmt_dt(item.updated_at) or '—'} |")
+            print(f"| <a class=\"student\" href=\"{repo_url(org, item.student)}\">{item.student}</a> | `{item.branch}` | {item.checks} | {item.age} | {fmt_dt(item.updated_at) or '—'} |")
         print()
 
     print("## Статистика по студентам")
