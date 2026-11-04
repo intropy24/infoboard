@@ -2,7 +2,6 @@ name: Refresh info board
 
 on:
   schedule:
-    # каждые 30 минут; GitHub может сдвигать cron-запуски на несколько минут
     - cron: "*/30 * * * *"
   workflow_dispatch:
 
@@ -27,9 +26,6 @@ jobs:
 
       - run: pip install -r src/requirements.txt
 
-      # кэши живут в Actions cache, в репо не коммитятся. Если GitHub их
-      # когда-нибудь выпилит — прогрев заново: stats за секунды, события за
-      # то, что ещё видно в Events API
       - uses: actions/cache@v4
         with:
           path: |
@@ -40,7 +36,6 @@ jobs:
 
       - name: Сборка отчёта
         env:
-          # PAT преподавателя: только читает студенческие репо организации
           GH_PAT: ${{ secrets.GH_PAT }}
           GH_ORG: intropy24
         run: python src/labs_review_queue.py --md > report.md
