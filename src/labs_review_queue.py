@@ -5,7 +5,7 @@ import sys
 from collections.abc import Iterator
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from itertools import pairwise
 from pathlib import Path
 
@@ -192,10 +192,19 @@ def student_push_count(repo_events: list[dict], student: str, student_shas: set[
     return n
 
 
+MSK = timezone(timedelta(hours=3))
+
+
 def fmt_dt(iso: str) -> str:
     if not iso:
         return ""
-    return datetime.fromisoformat(iso).astimezone(UTC).strftime("%d.%m.%Y %H:%M")
+    return datetime.fromisoformat(iso).astimezone(MSK).strftime("%d.%m.%Y %H:%M")
+
+
+def fmt_date(iso: str) -> str:
+    if not iso:
+        return ""
+    return datetime.fromisoformat(iso).astimezone(MSK).strftime("%d.%m.%Y")
 
 
 def lines_per_hour(points: list[tuple[datetime, int]]) -> tuple[int, int, int] | None:
@@ -551,13 +560,13 @@ def report(
             for i, item in enumerate(answered, start=1):
                 print(
                     f"{i:>3}. 💬 {item.age:<8} {item.student:<18} {item.branch:<26} "
-                    f"{_pad(item.review_state, 16)}— ревью с {item.waiting_since[:10]}, ответ студента с {item.student_after[:10]}"
+                    f"{_pad(item.review_state, 16)}— ревью с {fmt_date(item.waiting_since)}, ответ студента с {fmt_date(item.student_after)}"
                 )
 
     if no_pr:
         print("\n=== Lab-ветки без PR ===")
         for item in sorted(no_pr, key=lambda it: it.waiting_since or it.updated_at):
-            print(f"      ⏳ {item.age:<8} {item.student:<18} {item.branch} (последний коммит {item.updated_at[:10]})")
+            print(f"      ⏳ {item.age:<8} {item.student:<18} {item.branch} (последний коммит {fmt_date(item.updated_at)})")
 
     print(f"\n=== Статистика по студентам ({org}) ===")
     header = (
@@ -592,14 +601,14 @@ def report_md(
     queue.sort(key=lambda item: item.waiting_since or item.updated_at)
     print(f"# Очередь лабораторных — {org}")
     print()
-    print(f"_Обновлено: {datetime.now(UTC):%Y-%m-%d %H:%M} UTC_")
+    print(f"_Обновлено: {datetime.now(MSK):%d.%m.%Y %H:%M} МСК_")
     print()
     print("## Очередь на проверку")
     print()
     if not queue:
         print("Пусто — все PR'ы проверены ✅")
     else:
-        print("| № | Студент | Ветка | Коммитов (ждут/всего) | +/− | Ревью | Ждёт | С (UTC) | ⚡ стр/ч (ср/макс·инт) |")
+        print("| № | Студент | Ветка | Коммитов (ждут/всего) | +/− | Ревью | Ждёт | С (МСК) | ⚡ стр/ч (ср/макс·инт) |")
         print("|---:|:---|:---|---:|---:|:---|---:|:---:|:---:|")
         for i, item in enumerate(queue, start=1):
             draft = " 🚧" if item.draft else ""
@@ -619,7 +628,7 @@ def report_md(
         if silent:
             print("## Ожидаются исправления")
             print()
-            print("| № | Студент | Ветка | Ревью | convs | Давность | С (UTC) |")
+            print("| № | Студент | Ветка | Ревью | convs | Давность | С (МСК) |")
             print("|---:|:---|:---|:---|---:|---:|:---:|")
             for i, item in enumerate(silent, start=1):
                 print(
@@ -635,7 +644,7 @@ def report_md(
             for i, item in enumerate(answered, start=1):
                 print(
                     f"| {i} | {item.student} | [`{item.branch}`]({item.pr_url}) | "
-                    f"{item.review_state} | {item.age} | {item.waiting_since[:10] or '—'} | {item.student_after[:10]} |"
+                    f"{item.review_state} | {item.age} | {fmt_date(item.waiting_since) or '—'} | {fmt_date(item.student_after)} |"
                 )
             print()
 
@@ -645,7 +654,7 @@ def report_md(
         print("| Студент | Ветка | Давность | Последний коммит |")
         print("|:---|:---|---:|:---:|")
         for item in sorted(no_pr, key=lambda it: it.waiting_since or it.updated_at):
-            print(f"| {item.student} | `{item.branch}` | {item.age} | {item.updated_at[:10] or '—'} |")
+            print(f"| {item.student} | `{item.branch}` | {item.age} | {fmt_date(item.updated_at) or '—'} |")
         print()
 
     print("## Статистика по студентам")

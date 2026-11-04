@@ -5,19 +5,57 @@
     <!-- страница сама перезагружается с той же частотой, что и обновляется отчёт -->
     <meta http-equiv="refresh" content="1800">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Очередь лабораторных — intropy24</title>
+    <title>intropy24</title>
     <style>
-      body { font-family: system-ui, sans-serif; max-width: 1100px; margin: 2rem auto; padding: 0 1rem; line-height: 1.45; }
+      :root {
+        --bg: #ffffff; --fg: #1f2328; --border: #d0d7de; --th: #f6f8fa;
+        --stripe: #fafbfc; --code: #eff1f3; --link: #0969da; --muted: #656d76;
+      }
+      /* тёмная тема: включается сама по системной теме, если пользователь не выбрал свою */
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --bg: #0d1117; --fg: #e6edf3; --border: #30363d; --th: #161b22;
+          --stripe: #10151c; --code: #1f242c; --link: #4493f8; --muted: #9198a1;
+        }
+      }
+      :root[data-theme="dark"] {
+        --bg: #0d1117; --fg: #e6edf3; --border: #30363d; --th: #161b22;
+        --stripe: #10151c; --code: #1f242c; --link: #4493f8; --muted: #9198a1;
+      }
+      body {
+        font-family: system-ui, sans-serif; max-width: 1100px; margin: 2rem auto; padding: 0 1rem;
+        line-height: 1.45; background: var(--bg); color: var(--fg); transition: background .2s, color .2s;
+      }
       h1, h2 { margin-top: 1.8em; }
       table { border-collapse: collapse; width: 100%; font-size: 0.92em; display: block; overflow-x: auto; }
-      th, td { border: 1px solid #d0d7de; padding: 4px 9px; text-align: left; }
-      th { background: #f6f8fa; }
-      tr:nth-child(even) td { background: #fafbfc; }
-      code { background: #f6f8fa; padding: 1px 4px; border-radius: 4px; }
-      a { color: #0969da; }
+      th, td { border: 1px solid var(--border); padding: 4px 9px; text-align: left; }
+      th { background: var(--th); }
+      tr:nth-child(even) td { background: var(--stripe); }
+      code { background: var(--code); padding: 1px 4px; border-radius: 4px; }
+      a { color: var(--link); }
+      #theme-toggle {
+        position: fixed; top: .6rem; right: .6rem; cursor: pointer; font-size: 1.15rem;
+        background: var(--th); color: var(--fg); border: 1px solid var(--border); border-radius: 8px;
+        padding: 2px 9px; line-height: 1.6;
+      }
+      #theme-toggle:hover { border-color: var(--muted); }
     </style>
+    <script>
+      // выбор темы переживает автообновление страницы (meta refresh): храним в localStorage;
+      // применяем до отрисовки body, чтобы не было вспышки светлого фона
+      (function () {
+        var saved = localStorage.getItem("infoboard-theme");
+        if (saved === "dark" || saved === "light") document.documentElement.dataset.theme = saved;
+      })();
+    </script>
   </head>
   <body>
+    <button id="theme-toggle" title="Переключить светлую/тёмную тему" onclick="
+      var r = document.documentElement;
+      var cur = r.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      var next = cur === 'dark' ? 'light' : 'dark';
+      r.dataset.theme = next;
+      localStorage.setItem('infoboard-theme', next);">🌓</button>
     {{ content }}
   </body>
 </html>
