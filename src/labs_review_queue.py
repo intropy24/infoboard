@@ -405,7 +405,7 @@ def collect_student(
             no_pr.append(QueueItem(
                 student, name, None, "", "", date.isoformat(), age, None, None, None, "нет PR", False,
                 waiting_since=date.isoformat(), checks=checks_by_branch.get(name, "—"),
-                checks_url=f"https://github.com/{owner}/{repo}/commits/{sha}/checks",
+                checks_url=f"https://github.com/{owner}/{repo}/commit/{sha}/checks",
             ))
             continue
         if lab_number not in stats.lab_numbers and any(
@@ -497,7 +497,7 @@ def collect_student(
                         student_after=comment.isoformat() if comment else "",
                         unresolved=threads_by_pr.get(p.number),
                         checks=checks_by_branch.get(name, "—"),
-                        checks_url=f"https://github.com/{owner}/{repo}/commits/{sha}/checks",
+                        checks_url=f"https://github.com/{owner}/{repo}/commit/{sha}/checks",
                     ))
                     continue
                 if push_after is None and student_commits and student_commits[-1][1] > teacher_seen:
@@ -536,7 +536,7 @@ def collect_student(
                 speed=speed,
                 waiting_since=waiting_start.isoformat(),
                 checks=checks_by_branch.get(name, "—"),
-                checks_url=f"https://github.com/{owner}/{repo}/commits/{sha}/checks",
+                checks_url=f"https://github.com/{owner}/{repo}/commit/{sha}/checks",
             ))
     stats.pushes = student_push_count(repo_events, student, student_shas)
     return queue, reviewed, no_pr, stats
@@ -628,7 +628,7 @@ def _md_checks(item: QueueItem) -> str:
         s = f"❌ {len(s[2:].split(', '))}"
     elif s == "⏳ идёт":
         s = "⏳"
-    return f"[{s}]({item.checks_url})" if item.checks_url and s != "—" else s
+    return f'<a class="ci" href="{item.checks_url}">{s}</a>' if item.checks_url and s != "—" else s
 
 
 def report_md(
