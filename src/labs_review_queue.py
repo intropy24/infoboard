@@ -67,6 +67,7 @@ class QueueItem:
     student_after: str = ""
     unresolved: int | None = None
     checks: str = "—"
+    checks_url: str = ""
 
 
 @dataclass
@@ -404,6 +405,7 @@ def collect_student(
             no_pr.append(QueueItem(
                 student, name, None, "", "", date.isoformat(), age, None, None, None, "нет PR", False,
                 waiting_since=date.isoformat(), checks=checks_by_branch.get(name, "—"),
+                checks_url=f"https://github.com/{owner}/{repo}/commits/{sha}/checks",
             ))
             continue
         if lab_number not in stats.lab_numbers and any(
@@ -495,6 +497,7 @@ def collect_student(
                         student_after=comment.isoformat() if comment else "",
                         unresolved=threads_by_pr.get(p.number),
                         checks=checks_by_branch.get(name, "—"),
+                        checks_url=f"https://github.com/{owner}/{repo}/commits/{sha}/checks",
                     ))
                     continue
                 if push_after is None and student_commits and student_commits[-1][1] > teacher_seen:
@@ -533,6 +536,7 @@ def collect_student(
                 speed=speed,
                 waiting_since=waiting_start.isoformat(),
                 checks=checks_by_branch.get(name, "—"),
+                checks_url=f"https://github.com/{owner}/{repo}/commits/{sha}/checks",
             ))
     stats.pushes = student_push_count(repo_events, student, student_shas)
     return queue, reviewed, no_pr, stats
@@ -618,6 +622,15 @@ def _stat_order(s: StudentStats) -> tuple:
     return (-(s.lines_add + s.lines_del), -s.commits_total, s.student)
 
 
+def _md_checks(item: QueueItem) -> str:
+    s = item.checks
+    if s.startswith("❌ "):
+        s = f"❌ {len(s[2:].split(', '))}"
+    elif s == "⏳ идёт":
+        s = "⏳"
+    return f"[{s}]({item.checks_url})" if item.checks_url and s != "—" else s
+
+
 def report_md(
     queue: list[QueueItem], reviewed: list[QueueItem], no_pr: list[QueueItem], stats: list[StudentStats], org: str, failed: int
 ) -> None:
@@ -640,7 +653,7 @@ def report_md(
             comm = f"{item.commits}/{item.commits_all}" if item.commits_all is not None else (item.commits if item.commits is not None else "—")
             print(
                 f"| {i} | <a class=\"student\" href=\"{repo_url(org, item.student)}\">{item.student}</a> | [`{item.branch}`]({item.pr_url}) | "
-                f"{comm} | {plus_minus} | {item.review_state}{draft} | {item.checks} | "
+                f"{comm} | {plus_minus} | {item.review_state}{draft} | {_md_checks(item)} | "
                 f"{item.age} | {fmt_dt(item.waiting_since) or '—'} | {speed} |"
             )
     print()
@@ -677,7 +690,7 @@ def report_md(
         print("| Студент | Ветка | CI | Давность | Последний коммит |")
         print("|:---|:---|:---|---:|:---:|")
         for item in sorted(no_pr, key=lambda it: it.waiting_since or it.updated_at):
-            print(f"| <a class=\"student\" href=\"{repo_url(org, item.student)}\">{item.student}</a> | `{item.branch}` | {item.checks} | {item.age} | {fmt_dt(item.updated_at) or '—'} |")
+            print(f"| <a class=\"student\" href=\"{repo_url(org, item.student)}\">{item.student}</a> | `{item.branch}` | {_md_checks(item)} | {item.age} | {fmt_dt(item.updated_at) or '—'} |")
         print()
 
     print("## Статистика по студентам")
