@@ -814,8 +814,9 @@ SPEED_JS = """
     selL.onchange = apply;
   })();
   var btns = document.querySelectorAll('#sp-mode button');
-  // heat-map «день недели × час»: третья мода вместо кривых рисует сетку 7×24, где
-  // цвет ячейки — число коммитов; агрегирует те же серии, что оставили фильтры, в окне «с/по»
+  // heat-map «день недели × час»: третья мода вместо кривых рисует сетку 7×24
+  // с итоговой строкой, где цвет ячейки — число коммитов; агрегирует те же серии,
+  // что оставили фильтры, в окне «с/по»
   var HINT = 'ячейка — коммиты за час (МСК); наведение на студента — его heatmap';
   var heat = document.getElementById('speed-heat');
   var heatInfo = document.getElementById('sp-heat-info');
@@ -877,9 +878,10 @@ SPEED_JS = """
     var cells = heatShown, max = 1;
     Object.keys(cells).forEach(function (k) { max = Math.max(max, cells[k].n); });
     c2.clearRect(0, 0, W, H); // перерисовка поверх старых пикселей оставила бы хвосты подсветки
-    function lvOf(n) { if (!n) return 0; var q = Math.sqrt(n / max); return q > .75 ? 4 : q > .5 ? 3 : q > .25 ? 2 : 1; } // sqrt — редкие часы не тонут
+    function lvOf(n, mx) { if (!n) return 0; var q = Math.sqrt(n / mx); return q > .75 ? 4 : q > .5 ? 3 : q > .25 ? 2 : 1; } // sqrt — редкие часы не тонут
     function textOn(hex) { var L = .299 * parseInt(hex.slice(1, 3), 16) + .587 * parseInt(hex.slice(3, 5), 16) + .114 * parseInt(hex.slice(5, 7), 16); return L > 140 ? (dark ? '#0d1117' : '#1f2328') : '#fff'; }
-    var cw = (W - HX - HR) / 24, ch = (H - HY - HB) / 7;
+    var cw = (W - HX - HR) / 24, GAP = 12; // GAP — лёгкий отступ перед итоговой строкой
+    var ch = (H - HY - HB - GAP) / 8; // 7 строк дней + 1 итоговая
     heatGeom = { cw: cw, ch: ch };
     c2.font = '11px system-ui, sans-serif'; c2.textBaseline = 'middle';
     for (var row = 0; row < 7; row++) {
@@ -888,13 +890,33 @@ SPEED_JS = """
       c2.fillText(DAYS[row], HX - 6, HY + ch * (row + .5));
       for (var hh = 0; hh < 24; hh++) {
         var x = HX + hh * cw, y = HY + row * ch, cc = cells[day * 24 + hh];
-        var n = cc ? cc.n : 0, lv = lvOf(n);
+        var n = cc ? cc.n : 0, lv = lvOf(n, max);
         c2.fillStyle = PAL[lv];
         c2.fillRect(x + 1, y + 1, cw - 2, ch - 2);
         if (n) {
           c2.fillStyle = textOn(PAL[lv]); c2.textAlign = 'center';
           c2.fillText(String(Math.round(n)), x + cw / 2, y + ch / 2);
         }
+      }
+    }
+    // итоговая строка: распределение коммитов по часу суток за всю неделю; шкала своя,
+    // иначе на фоне семикратных сумм строка была бы всегда самого тёмного уровня
+    var tot = [], tMax = 1, hh2;
+    for (hh2 = 0; hh2 < 24; hh2++) tot[hh2] = 0;
+    Object.keys(cells).forEach(function (k) { tot[(+k) % 24] += cells[k].n; });
+    for (hh2 = 0; hh2 < 24; hh2++) tMax = Math.max(tMax, tot[hh2]);
+    var ty = HY + 7 * ch + GAP;
+    c2.strokeStyle = dark ? 'rgba(139,148,158,.35)' : 'rgba(87,96,106,.3)'; // черта-разделитель над итогом
+    c2.beginPath(); c2.moveTo(HX, ty - GAP / 2 + .5); c2.lineTo(W - HR, ty - GAP / 2 + .5); c2.stroke();
+    c2.fillStyle = cMut; c2.textAlign = 'right';
+    c2.fillText('итог', HX - 6, ty + ch / 2);
+    for (hh2 = 0; hh2 < 24; hh2++) {
+      var nx = HX + hh2 * cw, nT = tot[hh2], lvT = lvOf(nT, tMax);
+      c2.fillStyle = PAL[lvT];
+      c2.fillRect(nx + 1, ty + 1, cw - 2, ch - 2);
+      if (nT) {
+        c2.fillStyle = textOn(PAL[lvT]); c2.textAlign = 'center';
+        c2.fillText(String(Math.round(nT)), nx + cw / 2, ty + ch / 2);
       }
     }
     c2.fillStyle = cMut; c2.textAlign = 'center';
