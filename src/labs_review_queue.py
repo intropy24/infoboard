@@ -385,6 +385,7 @@ def collect_student(
     queue: list[QueueItem] = []
     reviewed: list[QueueItem] = []
     no_pr: list[QueueItem] = []
+    b_status: dict[str, str] = {}  # состояние лабы по ветке для матрицы «прогресс»: merged/reviewed/queue/nopr
     for name, sha in branches:
         if name in ("main", "master"):
             continue
@@ -424,6 +425,8 @@ def collect_student(
                 waiting_since=date.isoformat(), checks=checks_by_branch.get(name, "—"),
                 checks_url=f"https://github.com/{owner}/{repo}/commit/{sha}/checks",
             ))
+            if own is not None:  # студенческие коммиты есть, PR нет — статус для матрицы
+                b_status[name] = "nopr"
             continue
         if lab_number not in stats.lab_numbers and any(
             p.state == "open" or p.merged_at is not None for p in candidates
@@ -433,6 +436,7 @@ def collect_student(
             if p.state != "open":
                 if p.merged_at is not None:
                     stats.merged += 1
+                    b_status[name] = "merged"
                     for c in commits_by_pr[p.number]:
                         if commit_is_teacher(c, teacher):
                             continue
@@ -524,6 +528,7 @@ def collect_student(
                         checks=checks_by_branch.get(name, "—"),
                         checks_url=f"https://github.com/{owner}/{repo}/commit/{sha}/checks",
                     ))
+                    b_status[name] = "reviewed"
                     continue
                 if push_after is None and student_commits and student_commits[-1][1] > teacher_seen:
                     push_after = student_commits[-1][1]
@@ -563,6 +568,7 @@ def collect_student(
                 checks=checks_by_branch.get(name, "—"),
                 checks_url=f"https://github.com/{owner}/{repo}/commit/{sha}/checks",
             ))
+            b_status[name] = "queue"
     charts: list[dict] = []
     for name, pts in lab_chart.items():
         points: list[list] = []
@@ -574,7 +580,10 @@ def collect_student(
             points.append([int(d.timestamp() * 1000), rate, f"https://github.com/{owner}/{repo}/commit/{c_sha}", c_sha[:7], msg, a_])
             prev = d
         if points:
-            charts.append({"s": student, "b": name, "p": points})
+            charts.append({"s": student, "b": name, "p": points, "st": b_status.get(name, "")})
+    for name, st_ in b_status.items():  # ветки без точек: только статус, для матрицы «прогресс»
+        if name not in lab_chart:
+            charts.append({"s": student, "b": name, "p": [], "st": st_})
     stats.pushes = student_push_count(repo_events, student, student_shas)
     return queue, reviewed, no_pr, stats, charts
 
@@ -806,7 +815,7 @@ SPEED_JS = """
     });
     chart.update('none');
     glide();
-    if (mode === 'heat') drawHeat(); // фильтры действуют и на heat-map
+    if (mode === 'heat') drawHeat(); else if (mode === 'matrix') drawMatrix(); // фильтры действуют и на оверлеи
   }
   (function () {
     var o = document.createElement('option'); o.value = ''; o.textContent = 'все лабы'; selL.appendChild(o);
@@ -822,6 +831,7 @@ SPEED_JS = """
   var heatInfo = document.getElementById('sp-heat-info');
   var DAYS = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
   var HX = 34, HY = 8, HR = 8, HB = 36; // поля под подписи дней и часов
+  function textOn(hex, dark) { var L = .299 * parseInt(hex.slice(1, 3), 16) + .587 * parseInt(hex.slice(3, 5), 16) + .114 * parseInt(hex.slice(5, 7), 16); return L > 140 ? (dark ? '#0d1117' : '#1f2328') : '#fff'; } // читаемый текст поверх цвета ячейки
   var heatGeom = null; // {cw, ch} — превращаем пиксели мыши в номер ячейки
   var heatHover = null; // {day, hour} ячейки под курсором (day: 0=вс)
   var heatCur = {}; // целевые клетки — подсказка показывает цель, а не середину твина
@@ -879,7 +889,6 @@ SPEED_JS = """
     Object.keys(cells).forEach(function (k) { max = Math.max(max, cells[k].n); });
     c2.clearRect(0, 0, W, H); // перерисовка поверх старых пикселей оставила бы хвосты подсветки
     function lvOf(n, mx) { if (!n) return 0; var q = Math.sqrt(n / mx); return q > .75 ? 4 : q > .5 ? 3 : q > .25 ? 2 : 1; } // sqrt — редкие часы не тонут
-    function textOn(hex) { var L = .299 * parseInt(hex.slice(1, 3), 16) + .587 * parseInt(hex.slice(3, 5), 16) + .114 * parseInt(hex.slice(5, 7), 16); return L > 140 ? (dark ? '#0d1117' : '#1f2328') : '#fff'; }
     var cw = (W - HX - HR) / 24, GAP = 12; // GAP — лёгкий отступ перед итоговой строкой
     var ch = (H - HY - HB - GAP) / 8; // 7 строк дней + 1 итоговая
     heatGeom = { cw: cw, ch: ch };
@@ -894,7 +903,7 @@ SPEED_JS = """
         c2.fillStyle = PAL[lv];
         c2.fillRect(x + 1, y + 1, cw - 2, ch - 2);
         if (n) {
-          c2.fillStyle = textOn(PAL[lv]); c2.textAlign = 'center';
+          c2.fillStyle = textOn(PAL[lv], dark); c2.textAlign = 'center';
           c2.fillText(String(Math.round(n)), x + cw / 2, y + ch / 2);
         }
       }
@@ -915,7 +924,7 @@ SPEED_JS = """
       c2.fillStyle = PAL[lvT];
       c2.fillRect(nx + 1, ty + 1, cw - 2, ch - 2);
       if (nT) {
-        c2.fillStyle = textOn(PAL[lvT]); c2.textAlign = 'center';
+        c2.fillStyle = textOn(PAL[lvT], dark); c2.textAlign = 'center';
         c2.fillText(String(Math.round(nT)), nx + cw / 2, ty + ch / 2);
       }
     }
@@ -944,15 +953,126 @@ SPEED_JS = """
   });
   heat.addEventListener('mouseleave', function () { heatHover = null; if (mode === 'heat') { heatPaint(); heatInfo.textContent = HINT; } });
   // переключение темы (🌓 меняет data-theme на <html>) — перекрашиваем heatmap на лету
-  if (window.MutationObserver) new MutationObserver(function () { if (mode === 'heat') drawHeat(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-  function setMode(m) { // переключение метрики Y / heat-map: все величины уже лежат в точках
+  if (window.MutationObserver) new MutationObserver(function () { if (mode === 'heat') drawHeat(); else if (mode === 'matrix') drawMatrix(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  // матрица «прогресс»: студенты по вертикали, лабы по горизонтали; цвет ячейки —
+  // статус лабы (st из данных), число — коммиты; подсветка строк/столбцов твином 100мс,
+  // уважает пик (клик-список) и лабу (селект); окно «с/по» на матрицу не влияет
+  var mxCv = document.getElementById('speed-mx');
+  var mxInfo = document.getElementById('sp-mx-info');
+  var MHINT = 'строка — студент, столбец — лаба; число — коммиты; клик по ячейке — последний коммит';
+  var MXCOL = { merged: '#238636', queue: '#9e6a03', reviewed: '#1f6feb', nopr: '#6e7681' };
+  var MXTXT = { merged: 'влита', queue: 'на проверке', reviewed: 'проверено', nopr: 'нет PR' };
+  var mxCell = {}, mxNames = {}, mLabs = {};
+  DATA.forEach(function (d) { // студент|ветка -> ячейка; пустые серии несут только статус
+    var n = d.p.length, add = 0;
+    d.p.forEach(function (pt) { add += pt[5]; });
+    mxCell[d.s + '|' + d.b] = { st: d.st || '', n: n, add: add, u: n ? d.p[n - 1][2] : '' };
+    mxNames[d.s] = 1; mLabs[d.b] = 1;
+  });
+  var mxRowN = Object.keys(mxNames).sort();
+  var mxColL = Object.keys(mLabs).sort();
+  var mxRowShown = {}, mxCvShown = {}, mxAnim = 0, mxGeom = null, mxHover = null;
+  function mxRowT(s) { // подсветка строки: наведение на имя сильнее, чем пик
+    var any = Object.keys(picked).length > 0;
+    if (state.focus) return state.focus === s ? 1 : .12;
+    return !any || picked[s] ? 1 : .12;
+  }
+  function mxCvT(b) { return !selL.value || b === selL.value ? 1 : .15; }
+  function drawMatrix() { // те же 100мс easeOutQuad, но ведём прозрачность строк и столбцов
+    cancelAnimationFrame(mxAnim);
+    var rF = {}, rT = {}, cF = {}, cT = {}, t0 = performance.now();
+    mxRowN.forEach(function (s) { rF[s] = s in mxRowShown ? mxRowShown[s] : mxRowT(s); rT[s] = mxRowT(s); });
+    mxColL.forEach(function (b) { cF[b] = b in mxCvShown ? mxCvShown[b] : mxCvT(b); cT[b] = mxCvT(b); });
+    (function step(now) {
+      var k = Math.min(1, (now - t0) / 100), e = k * (2 - k), mr = {}, mc = {};
+      mxRowN.forEach(function (s) { mr[s] = rF[s] + (rT[s] - rF[s]) * e; });
+      mxColL.forEach(function (b) { mc[b] = cF[b] + (cT[b] - cF[b]) * e; });
+      mxRowShown = mr; mxCvShown = mc;
+      matrixPaint();
+      if (k < 1) mxAnim = requestAnimationFrame(step);
+    })(t0);
+  }
+  function matrixPaint() {
+    var box = mxCv.parentElement, W = box.clientWidth, H = box.clientHeight;
+    if (!W || !H) return;
+    var dpr = window.devicePixelRatio || 1;
+    if (mxCv.width !== W * dpr || mxCv.height !== H * dpr) { mxCv.width = W * dpr; mxCv.height = H * dpr; }
+    var c2 = mxCv.getContext('2d');
+    c2.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c2.clearRect(0, 0, W, H);
+    var cs = getComputedStyle(document.documentElement);
+    var cMut = cs.getPropertyValue('--muted').trim() || '#57606a';
+    var rgb = (getComputedStyle(document.body).backgroundColor.match(/\d+/g) || [255, 255, 255]).map(Number);
+    var dark = .299 * rgb[0] + .587 * rgb[1] + .114 * rgb[2] < 140;
+    var empty = dark ? '#161b22' : '#ebedf0', n = mxRowN.length, m = mxColL.length, TOP = 24, BOT = 20, i;
+    c2.font = '11px system-ui, sans-serif'; c2.textBaseline = 'middle';
+    var LW = 96;
+    for (i = 0; i < n; i++) LW = Math.max(LW, Math.min(150, c2.measureText(mxRowN[i]).width + 14));
+    var cw = (W - LW - 8) / m, rh = (H - TOP - BOT) / n;
+    mxGeom = { LW: LW, cw: cw, rh: rh, TOP: TOP };
+    mxInfo.style.left = LW + 6 + 'px'; // инфо-строка начинается правее имён, как и сетка
+    c2.fillStyle = cMut; c2.textAlign = 'center';
+    for (i = 0; i < m; i++) c2.fillText(cw > 64 ? mxColL[i] : mxColL[i].replace('lab-', 'л'), LW + cw * (i + .5), TOP / 2);
+    for (var r = 0; r < n; r++) {
+      var s = mxRowN[r], ra = s in mxRowShown ? mxRowShown[s] : 1;
+      c2.globalAlpha = ra; c2.fillStyle = cMut; c2.textAlign = 'right';
+      var nm = s;
+      while (nm.length > 2 && c2.measureText(nm + '…').width > LW - 12) nm = nm.slice(0, -1);
+      c2.fillText(nm === s ? s : nm + '…', LW - 6, TOP + rh * (r + .5));
+      for (var c = 0; c < m; c++) {
+        var cell = mxCell[s + '|' + mxColL[c]], st = cell ? cell.st : '';
+        c2.globalAlpha = ra * ((mxColL[c] in mxCvShown) ? mxCvShown[mxColL[c]] : 1);
+        c2.fillStyle = cell && st ? MXCOL[st] || empty : empty;
+        c2.fillRect(LW + cw * c + 1, TOP + rh * r + 1, cw - 2, rh - 2);
+        if (cell && cell.n) {
+          c2.fillStyle = textOn(MXCOL[st] || empty, dark); c2.textAlign = 'center';
+          c2.fillText(String(cell.n), LW + cw * (c + .5), TOP + rh * (r + .5));
+        }
+      }
+    }
+    c2.globalAlpha = 1;
+    var lx = LW, ly = H - BOT / 2; // легенда статусов
+    ['merged', 'queue', 'reviewed', 'nopr'].forEach(function (st) {
+      c2.fillStyle = MXCOL[st]; c2.fillRect(lx, ly - 5, 10, 10);
+      c2.fillStyle = cMut; c2.textAlign = 'left'; c2.font = '10px system-ui, sans-serif';
+      c2.fillText(MXTXT[st], lx + 14, ly + 1);
+      lx += 20 + c2.measureText(MXTXT[st]).width;
+    });
+    if (mxHover) {
+      c2.strokeStyle = '#4493f8'; c2.lineWidth = 2;
+      c2.strokeRect(LW + mxHover.c * cw + 1.5, TOP + mxHover.r * rh + 1.5, cw - 3, rh - 3);
+    }
+  }
+  mxCv.addEventListener('mousemove', function (e) {
+    if (!mxGeom) return;
+    var rct = mxCv.getBoundingClientRect();
+    var c = Math.floor((e.clientX - rct.left - mxGeom.LW) / mxGeom.cw);
+    var r = Math.floor((e.clientY - rct.top - mxGeom.TOP) / mxGeom.rh);
+    var hov = c >= 0 && c < mxColL.length && r >= 0 && r < mxRowN.length ? { r: r, c: c } : null;
+    var same = !!(hov && mxHover && hov.r === mxHover.r && hov.c === mxHover.c);
+    if (!same && (hov || mxHover)) { mxHover = hov; matrixPaint(); }
+    if (!hov) { mxInfo.textContent = MHINT; return; }
+    var s2 = mxRowN[hov.r], b = mxColL[hov.c], cell = mxCell[s2 + '|' + b];
+    if (!cell) { mxInfo.textContent = s2 + ' · ' + b + ' — ещё не брался'; return; }
+    mxInfo.textContent = s2 + ' · ' + b + ' — ' + (MXTXT[cell.st] || 'статус не определён') + (cell.n ? ', ' + cell.n + ' комм.' : '') + (cell.add ? ', +' + cell.add + ' строк' : '');
+  });
+  mxCv.addEventListener('mouseleave', function () { mxHover = null; if (mode === 'matrix') { matrixPaint(); mxInfo.textContent = MHINT; } });
+  mxCv.addEventListener('click', function () { // клик по ячейке — последний коммит лабы этого студента
+    if (!mxHover) return;
+    var cell = mxCell[mxRowN[mxHover.r] + '|' + mxColL[mxHover.c]];
+    if (cell && cell.u) window.open(cell.u, '_blank');
+  });
+  function setMode(m) { // переключение метрики Y / оверлеев: все величины уже лежат в точках
     mode = m;
-    var heatOn = m === 'heat';
-    chart.canvas.style.display = heatOn ? 'none' : '';
+    var heatOn = m === 'heat', mxOn = m === 'matrix';
+    chart.canvas.style.display = heatOn || mxOn ? 'none' : '';
     heat.style.display = heatOn ? 'block' : 'none';
     heatInfo.style.display = heatOn ? 'block' : 'none';
+    mxCv.style.display = mxOn ? 'block' : 'none';
+    mxInfo.style.display = mxOn ? 'block' : 'none';
     Array.prototype.forEach.call(btns, function (b) { b.classList.toggle('on', b.getAttribute('data-mode') === m); });
     if (heatOn) { drawHeat(); return; }
+    if (mxOn) { drawMatrix(); return; }
     ds.forEach(function (d) { d.data.forEach(function (p) { p.y = m === 'rate' ? (p.r === null ? 1 : p.r) : p.l; }); });
     chart.options.scales.y.title.text = m === 'rate' ? 'скорость коммита, стр/ч (лог)' : 'строк в коммите (лог)';
     chart.update('none');
@@ -1043,8 +1163,8 @@ SPEED_JS = """
   Array.prototype.forEach.call(document.getElementById('sp-list').children, function (li) {
     var s = li.getAttribute('data-student');
     li.querySelector('i').style.background = 'hsl(' + hueOf(s) + ',72%,55%)';
-    li.onmouseenter = function () { state.focus = s; glide(); if (mode === 'heat') drawHeat(); };
-    li.onmouseleave = function () { state.focus = null; glide(); if (mode === 'heat') drawHeat(); };
+    li.onmouseenter = function () { state.focus = s; glide(); if (mode === 'heat') drawHeat(); else if (mode === 'matrix') drawMatrix(); };
+    li.onmouseleave = function () { state.focus = null; glide(); if (mode === 'heat') drawHeat(); else if (mode === 'matrix') drawMatrix(); };
     li.onclick = function () { // как чекбокс: один клик — видеть только его, ещё клик — добавить ещё одного
       if (picked[s]) { delete picked[s]; li.classList.remove('on'); }
       else { picked[s] = true; li.classList.add('on'); }
@@ -1056,13 +1176,13 @@ SPEED_JS = """
 
 
 def _speed_chart(charts: list[dict]) -> None:
-    data = [c for c in charts if c["p"]]
+    data = [c for c in charts if c["p"] or c.get("st")]
     if not data:
         return
     print('<div id="speed-wrap">')
     print('<div id="speed-side">')
     print('<div id="speed-controls"><select id="sp-lab"></select>')
-    print('<div id="sp-mode"><button data-mode="rate">стр/ч</button><button data-mode="lines" class="on">строк в коммите</button><button data-mode="heat">день×час</button></div>')
+    print('<div id="sp-mode"><button data-mode="rate">стр/ч</button><button data-mode="lines" class="on">строк в коммите</button><button data-mode="heat">день×час</button><button data-mode="matrix">прогресс</button></div>')
     print('<div id="sp-times">')
     print('<label class="sp-dt"><input id="sp-from" type="text" placeholder="с: дд.мм.гггг чч:мм" spellcheck="false" autocomplete="off"><input type="datetime-local" tabindex="-1" aria-hidden="true"><button type="button" class="sp-cal" data-for="sp-from" title="выбрать дату">📅</button></label>')
     print('<label class="sp-dt"><input id="sp-to" type="text" placeholder="по: дд.мм.гггг чч:мм" spellcheck="false" autocomplete="off"><input type="datetime-local" tabindex="-1" aria-hidden="true"><button type="button" class="sp-cal" data-for="sp-to" title="выбрать дату">📅</button></label>')
@@ -1074,7 +1194,7 @@ def _speed_chart(charts: list[dict]) -> None:
         print(f'<li data-student="{s}"><i></i>{s}</li>')
     print('</ul>')
     print('</div>')
-    print('<div id="speed-box"><canvas id="speed-canvas"></canvas><canvas id="speed-heat"></canvas><div id="sp-heat-info">ячейка — коммиты за час (МСК); наведение на студента — его heatmap</div></div>')
+    print('<div id="speed-box"><canvas id="speed-canvas"></canvas><canvas id="speed-heat"></canvas><canvas id="speed-mx"></canvas><div id="sp-heat-info">ячейка — коммиты за час (МСК); наведение на студента — его heatmap</div><div id="sp-mx-info">строка — студент, столбец — лаба; число — коммиты; клик по ячейке — последний коммит</div></div>')
     print('</div>')
     print()
     print('<script type="application/json" id="speed-data">' + json.dumps(data, ensure_ascii=False).replace("</", "<\\/") + '</script>')
