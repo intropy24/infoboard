@@ -106,6 +106,13 @@ def checks_status(runs) -> str:
     if any(r.status != "completed" for r in live):
         return "⏳ идёт"
     return "✅"
+def checks_rank(item: QueueItem) -> int:
+    c = item.checks
+    if c.startswith("✅"):
+        return 0
+    if c.startswith("⏳") or c == "—":
+        return 1
+    return 2
 
 
 def commit_is_teacher(c, teacher: str) -> bool:
@@ -553,7 +560,7 @@ def _pad(s: str, width: int) -> str:
 def report(
     queue: list[QueueItem], reviewed: list[QueueItem], no_pr: list[QueueItem], stats: list[StudentStats], org: str, failed: int
 ) -> None:
-    queue.sort(key=lambda item: item.waiting_since or item.updated_at)
+    queue.sort(key=lambda item: (checks_rank(item), item.waiting_since or item.updated_at))
     print("=== Очередь на проверку ===")
     if not queue:
         print("  пусто — все(PR'ы) проверены")
@@ -634,7 +641,7 @@ def _md_checks(item: QueueItem) -> str:
 def report_md(
     queue: list[QueueItem], reviewed: list[QueueItem], no_pr: list[QueueItem], stats: list[StudentStats], org: str, failed: int
 ) -> None:
-    queue.sort(key=lambda item: item.waiting_since or item.updated_at)
+    queue.sort(key=lambda item: (checks_rank(item), item.waiting_since or item.updated_at))
     print(f"# {org}")
     print()
     print(f"_Обновлено: {datetime.now(MSK):%d.%m.%Y %H:%M} МСК_")
