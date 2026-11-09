@@ -53,11 +53,16 @@
       #sp-mode button.on { background: var(--th); color: var(--fg); border-color: var(--muted); }
       /* фильтр по времени: рамку диапазона тянут мышью прямо по графику */
       #sp-times { display: flex; flex-direction: column; gap: .35rem; font-size: .82em; color: var(--muted); }
-      #sp-times label { display: flex; align-items: center; gap: .45rem; }
+      #sp-times label { position: relative; display: flex; gap: .3rem; align-items: stretch; }
       #sp-times input { flex: 1; min-width: 0; box-sizing: border-box; background: var(--th); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 3px 5px; font: inherit; }
       /* пустое поле выглядит нейтрально: только тусклый плейсхолдер, никакой нативной «mm/dd/yyyy» */
       #sp-times input::placeholder { color: var(--muted); opacity: .55; }
       #sp-times input.bad { border-color: #d1242f; }
+      /* под текстовым полем лежит прозрачный datetime-local: у него штатный календарь,
+         который вызывают кнопкой 📅 (showPicker), а в поле — наш дд.мм формат */
+      #sp-times input[type="datetime-local"] { position: absolute; left: 0; right: 36px; top: 0; height: 100%; opacity: 0; pointer-events: none; }
+      #sp-times .sp-cal { font-size: .95em; padding: 0 7px; cursor: pointer; background: var(--bg); color: var(--muted); border: 1px solid var(--border); border-radius: 6px; }
+      #sp-times .sp-cal:hover { border-color: var(--muted); color: var(--fg); }
       #sp-reset { font: inherit; padding: 2px 10px; cursor: pointer; background: var(--bg); color: var(--muted); border: 1px solid var(--border); border-radius: 6px; align-self: flex-start; }
       #sp-reset:hover { border-color: var(--muted); color: var(--fg); }
       #speed-box { flex: 1 1 auto; min-width: 0; height: 440px; position: relative; }

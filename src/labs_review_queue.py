@@ -824,6 +824,26 @@ SPEED_JS = """
   }
   inpF.onchange = onInputTime; inpT.onchange = onInputTime;
   inpF.onkeydown = inpT.onkeydown = function (e) { if (e.key === 'Enter') onInputTime(); };
+  // 📅: штатный нативный выбор даты живёт в невидимом datetime-local под текстовым
+  // полем; по клику открываем его picker, результат форматируем в наш дд.мм формат
+  function toLocalISO(ms) {
+    var d = new Date(ms);
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.sp-cal'), function (b) {
+    var tx = document.getElementById(b.getAttribute('data-for'));
+    var dt = tx.parentElement.querySelector('input[type="datetime-local"]');
+    b.onclick = function () {
+      var ms = parseInput(tx.value);
+      dt.value = ms === null || isNaN(ms) ? '' : toLocalISO(ms); // предзаполним, если уже вписано руками
+      try { dt.showPicker(); } catch (e) { dt.focus(); } // где showPicker нет — хотя бы фокус
+    };
+    dt.onchange = function () {
+      tx.value = dt.value ? toInput(new Date(dt.value).getTime()) : '';
+      tx.classList.remove('bad');
+      onInputTime();
+    };
+  });
   document.getElementById('sp-reset').onclick = function () { applyTime(null, null); };
   var canvas = chart.canvas;
   canvas.addEventListener('mousedown', function (e) {
@@ -868,13 +888,15 @@ def _speed_chart(charts: list[dict]) -> None:
     data = [c for c in charts if c["p"]]
     if not data:
         return
-    print("## ⚡ Коммиты — все живые PR'ы (стр/ч ↔ строк в коммите)")
-    print()
     print('<div id="speed-wrap">')
     print('<div id="speed-side">')
     print('<div id="speed-controls"><select id="sp-lab"></select>')
     print('<div id="sp-mode"><button data-mode="rate" class="on">стр/ч</button><button data-mode="lines">строк в коммите</button></div>')
-    print('<div id="sp-times"><label>с <input id="sp-from" type="text" placeholder="дд.мм.гггг чч:мм" spellcheck="false" autocomplete="off"></label><label>по <input id="sp-to" type="text" placeholder="дд.мм.гггг чч:мм" spellcheck="false" autocomplete="off"></label><button id="sp-reset" title="показать всё время">×</button></div>')
+    print('<div id="sp-times">')
+    print('<label class="sp-dt"><input id="sp-from" type="text" placeholder="с: дд.мм.гггг чч:мм" spellcheck="false" autocomplete="off"><input type="datetime-local" tabindex="-1" aria-hidden="true"><button type="button" class="sp-cal" data-for="sp-from" title="выбрать дату">📅</button></label>')
+    print('<label class="sp-dt"><input id="sp-to" type="text" placeholder="по: дд.мм.гггг чч:мм" spellcheck="false" autocomplete="off"><input type="datetime-local" tabindex="-1" aria-hidden="true"><button type="button" class="sp-cal" data-for="sp-to" title="выбрать дату">📅</button></label>')
+    print('<button id="sp-reset" title="показать всё время">×</button>')
+    print('</div>')
     print('</div>')
     print('<ul id="sp-list">')
     for s in sorted({d["s"] for d in data}):
@@ -919,7 +941,6 @@ def report_md(
                 f"{item.age} | {fmt_dt(item.waiting_since) or '—'} | {speed} |"
             )
     print()
-    _speed_chart(charts)
 
     if reviewed:
         silent = sorted((it for it in reviewed if not it.student_after), key=lambda it: it.waiting_since)
@@ -975,6 +996,8 @@ def report_md(
         f"веток без PR {len(no_pr)} · ждёт проверки коммитов {sum(s.awaiting_commits for s in stats)}"
         + (f" · **репо с ошибками {failed}**" if failed else "")
     )
+    print()
+    _speed_chart(charts)
 
 
 def main() -> None:
