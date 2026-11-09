@@ -704,6 +704,7 @@ SPEED_JS = """
   var drag = null; // идёт выделение рамкой: {x0, x1} в пикселях канваса
   var draggedOnce = false; // после перетаскивания подавляем клик, иначе открылся бы коммит
   var cursor = null; // курсор над полем графика: {x, y} — для перекрестия
+  var range = { from: null, to: null }; // окно «с/по» в мс — нужно и heat-map
   var crosshair = { // две полупрозрачные пунктирные линии по курсору, как в графане
     id: 'sp-crosshair',
     afterDraw: function (ch) {
@@ -799,6 +800,7 @@ SPEED_JS = """
     });
     chart.update('none');
     glide();
+    if (mode === 'heat') drawHeat(); // фильтры действуют и на heat-map
   }
   (function () {
     var o = document.createElement('option'); o.value = ''; o.textContent = 'все лабы'; selL.appendChild(o);
@@ -806,11 +808,92 @@ SPEED_JS = """
     selL.onchange = apply;
   })();
   var btns = document.querySelectorAll('#sp-mode button');
-  function setMode(m) { // метрика Y переключается на лету: обе величины лежат в каждой точке
+  // heat-map «день недели × час»: третья мода вместо кривых рисует сетку 7×24, где
+  // цвет ячейки — число коммитов; агрегирует те же серии, что оставили фильтры, в окне «с/по»
+  var HINT = 'ячейка — число коммитов за час (МСК); наведите для деталей';
+  var heat = document.getElementById('speed-heat');
+  var heatInfo = document.getElementById('sp-heat-info');
+  var DAYS = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
+  var HX = 34, HY = 8, HR = 8, HB = 36; // поля под подписи дней и часов
+  var heatGeom = null; // {cw, ch} — превращаем пиксели мыши в номер ячейки
+  var heatHover = null; // {day, hour} ячейки под курсором (day: 0=вс)
+  var heatCur = {}; // клетки последней отрисовки — источник подписи при наведении
+  function heatCells() { // {day*24+hour: {n, who}} по коммитам видимых серий в окне «с/по»
+    var cells = {};
+    ds.forEach(function (d) {
+      if (d.hidden) return;
+      d.data.forEach(function (p) {
+        if (range.from != null && p.x < range.from) return;
+        if (range.to != null && p.x > range.to) return;
+        var t = new Date(p.x + 108e5); // МСК: +3 ч и читаем UTC-поля (переходов у МСК нет)
+        var k = t.getUTCDay() * 24 + t.getUTCHours();
+        var c = cells[k] || (cells[k] = { n: 0, who: {} });
+        c.n += 1; c.who[d.student] = (c.who[d.student] || 0) + 1;
+      });
+    });
+    return cells;
+  }
+  function drawHeat() {
+    var box = heat.parentElement, W = box.clientWidth, H = box.clientHeight;
+    if (!W || !H) return;
+    var dpr = window.devicePixelRatio || 1;
+    heat.width = W * dpr; heat.height = H * dpr; // под HiDPI, иначе мыло
+    var c2 = heat.getContext('2d');
+    c2.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var cells = heatCur = heatCells(), max = 1;
+    Object.keys(cells).forEach(function (k) { max = Math.max(max, cells[k].n); });
+    var cw = (W - HX - HR) / 24, ch = (H - HY - HB) / 7;
+    heatGeom = { cw: cw, ch: ch };
+    c2.font = '11px system-ui, sans-serif'; c2.textBaseline = 'middle';
+    for (var row = 0; row < 7; row++) {
+      var day = (row + 1) % 7; // строки сверху вниз: пн..вс
+      c2.fillStyle = '#57606a'; c2.textAlign = 'right';
+      c2.fillText(DAYS[row], HX - 6, HY + ch * (row + .5));
+      for (var hh = 0; hh < 24; hh++) {
+        var x = HX + hh * cw, y = HY + row * ch, cc = cells[day * 24 + hh];
+        var n = cc ? cc.n : 0, a = n ? 0.12 + 0.88 * Math.sqrt(n / max) : 0; // sqrt — редкие часы не тонут
+        c2.fillStyle = n ? 'rgba(9,105,218,' + a.toFixed(3) + ')' : '#eaeef2';
+        c2.fillRect(x + 1, y + 1, cw - 2, ch - 2);
+        if (n) {
+          c2.fillStyle = a > .55 ? '#fff' : '#1f2328'; c2.textAlign = 'center';
+          c2.fillText(String(n), x + cw / 2, y + ch / 2);
+        }
+      }
+    }
+    c2.fillStyle = '#57606a'; c2.textAlign = 'center';
+    for (var h2 = 0; h2 < 24; h2 += 2) c2.fillText(String(h2), HX + h2 * cw + cw / 2, H - HB + 8);
+    if (heatHover) { // подсветка ячейки под курсором
+      var hx = HX + heatHover.hour * cw, hy = HY + ((heatHover.day + 6) % 7) * ch;
+      c2.strokeStyle = '#0969da'; c2.lineWidth = 2;
+      c2.strokeRect(hx + 1.5, hy + 1.5, cw - 3, ch - 3);
+    }
+  }
+  heat.addEventListener('mousemove', function (e) {
+    if (!heatGeom) return;
+    var r = heat.getBoundingClientRect();
+    var hh = Math.floor((e.clientX - r.left - HX) / heatGeom.cw);
+    var row = Math.floor((e.clientY - r.top - HY) / heatGeom.ch);
+    var hov = (hh >= 0 && hh < 24 && row >= 0 && row < 7) ? { hour: hh, day: (row + 1) % 7 } : null;
+    var same = !!(hov && heatHover && hov.day === heatHover.day && hov.hour === heatHover.hour);
+    if (!same && (hov || heatHover)) { heatHover = hov; drawHeat(); } // перерисовка только при смене ячейки
+    if (!hov) { heatInfo.textContent = HINT; return; }
+    var cc = heatCur[hov.day * 24 + hov.hour];
+    var span = DAYS[(hov.day + 6) % 7] + ' ' + hov.hour + ':00–' + ((hov.hour + 1) % 24) + ':00';
+    if (!cc) { heatInfo.textContent = span + ' — пусто'; return; }
+    var who = Object.keys(cc.who);
+    heatInfo.textContent = span + ' — ' + cc.n + ' комм.: ' + who.slice(0, 4).join(', ') + (who.length > 4 ? ' +' + (who.length - 4) : '');
+  });
+  heat.addEventListener('mouseleave', function () { heatHover = null; if (mode === 'heat') { drawHeat(); heatInfo.textContent = HINT; } });
+  function setMode(m) { // переключение метрики Y / heat-map: все величины уже лежат в точках
     mode = m;
+    var heatOn = m === 'heat';
+    chart.canvas.style.display = heatOn ? 'none' : '';
+    heat.style.display = heatOn ? 'block' : 'none';
+    heatInfo.style.display = heatOn ? 'block' : 'none';
+    Array.prototype.forEach.call(btns, function (b) { b.classList.toggle('on', b.getAttribute('data-mode') === m); });
+    if (heatOn) { drawHeat(); return; }
     ds.forEach(function (d) { d.data.forEach(function (p) { p.y = m === 'rate' ? (p.r === null ? 1 : p.r) : p.l; }); });
     chart.options.scales.y.title.text = m === 'rate' ? 'скорость коммита, стр/ч (лог)' : 'строк в коммите (лог)';
-    Array.prototype.forEach.call(btns, function (b) { b.classList.toggle('on', b.getAttribute('data-mode') === m); });
     chart.update('none');
   }
   Array.prototype.forEach.call(btns, function (b) { b.onclick = function () { setMode(b.getAttribute('data-mode')); }; });
@@ -833,11 +916,13 @@ SPEED_JS = """
     if (d.getFullYear() !== +m[3] || d.getMonth() !== +m[2] - 1 || d.getDate() !== +m[1]) return NaN;
     return d.getTime();
   }
-  function applyTime(from, to) { // мс или null — границы окна по X
+  function applyTime(from, to) { // мс или null — границы окна по X (и для heat-map)
+    range.from = from == null ? null : from; range.to = to == null ? null : to;
     chart.options.scales.x.min = from == null ? undefined : from;
     chart.options.scales.x.max = to == null ? undefined : to;
     inpF.value = toInput(from); inpT.value = toInput(to);
     chart.update('none');
+    if (mode === 'heat') drawHeat();
   }
   function onInputTime() {
     var f = parseInput(inpF.value), t = parseInput(inpT.value);
@@ -916,7 +1001,7 @@ def _speed_chart(charts: list[dict]) -> None:
     print('<div id="speed-wrap">')
     print('<div id="speed-side">')
     print('<div id="speed-controls"><select id="sp-lab"></select>')
-    print('<div id="sp-mode"><button data-mode="rate" class="on">стр/ч</button><button data-mode="lines">строк в коммите</button></div>')
+    print('<div id="sp-mode"><button data-mode="rate" class="on">стр/ч</button><button data-mode="lines">строк в коммите</button><button data-mode="heat">день×час</button></div>')
     print('<div id="sp-times">')
     print('<label class="sp-dt"><input id="sp-from" type="text" placeholder="с: дд.мм.гггг чч:мм" spellcheck="false" autocomplete="off"><input type="datetime-local" tabindex="-1" aria-hidden="true"><button type="button" class="sp-cal" data-for="sp-from" title="выбрать дату">📅</button></label>')
     print('<label class="sp-dt"><input id="sp-to" type="text" placeholder="по: дд.мм.гггг чч:мм" spellcheck="false" autocomplete="off"><input type="datetime-local" tabindex="-1" aria-hidden="true"><button type="button" class="sp-cal" data-for="sp-to" title="выбрать дату">📅</button></label>')
@@ -928,7 +1013,7 @@ def _speed_chart(charts: list[dict]) -> None:
         print(f'<li data-student="{s}"><i></i>{s}</li>')
     print('</ul>')
     print('</div>')
-    print('<div id="speed-box"><canvas id="speed-canvas"></canvas></div>')
+    print('<div id="speed-box"><canvas id="speed-canvas"></canvas><canvas id="speed-heat"></canvas><div id="sp-heat-info">ячейка — число коммитов за час (МСК); наведите для деталей</div></div>')
     print('</div>')
     print()
     print('<script type="application/json" id="speed-data">' + json.dumps(data, ensure_ascii=False).replace("</", "<\\/") + '</script>')
