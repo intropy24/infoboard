@@ -770,8 +770,10 @@ SPEED_JS = """
       }
     }
   });
-  // плавность подсветки: альфа каждой кривой ведётся к цели через rAF (easeOutQuad),
-  // chart.update('none') дал бы мгновенный скачок — анимируем сами через chart.render()
+  // плавность подсветки: альфа каждой кривой ведётся к цели через rAF (easeOutQuad);
+  // шаги ведутся через chart.update('none'), а не chart.render(): Chart.js пересчитывает
+  // scriptable-цвета только в update() (configure() сбрасывает кэш опций), а render()
+  // рисует старым кэшем — анимация через render() невидима и портила _a для фильтра
   var animId = 0;
   function glide() {
     cancelAnimationFrame(animId);
@@ -781,7 +783,7 @@ SPEED_JS = """
     (function step(now) {
       var k = Math.min(1, (now - t0) / 300), e = k * (2 - k);
       ds.forEach(function (d, i) { d._a = from[i] + (to[i] - from[i]) * e; });
-      chart.render();
+      chart.update('none');
       if (k < 1) animId = requestAnimationFrame(step);
     })(t0);
   }
