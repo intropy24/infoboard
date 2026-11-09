@@ -825,8 +825,8 @@ SPEED_JS = """
   })();
   var btns = document.querySelectorAll('#sp-mode button');
   // heat-map «день недели × час»: третья мода вместо кривых рисует сетку 7×24
-  // с итоговой строкой, где цвет ячейки — число коммитов; агрегирует те же серии,
-  // что оставили фильтры, в окне «с/по»
+  // с итоговой строкой снизу (по часам) и колонкой справа (по дням), где цвет
+  // ячейки — число коммитов; агрегирует те же серии, что оставили фильтры, в окне «с/по»
   var HINT = 'ячейка — коммиты за час (МСК); наведение на студента — его heatmap';
   var heat = document.getElementById('speed-heat');
   var heatInfo = document.getElementById('sp-heat-info');
@@ -890,8 +890,9 @@ SPEED_JS = """
     Object.keys(cells).forEach(function (k) { max = Math.max(max, cells[k].n); });
     c2.clearRect(0, 0, W, H); // перерисовка поверх старых пикселей оставила бы хвосты подсветки
     function lvOf(n, mx) { if (!n) return 0; var q = Math.sqrt(n / mx); return q > .75 ? 4 : q > .5 ? 3 : q > .25 ? 2 : 1; } // sqrt — редкие часы не тонут
-    var cw = (W - HX - HR) / 24, GAP = 12; // GAP — лёгкий отступ перед итоговой строкой
+    var GAP = 12, cw = (W - HX - HR - GAP) / 25; // 24 часа + 25-я колонка «итог» по дням; GAP — отступы перед итогами
     var ch = (H - HY - HB - GAP) / 8; // 7 строк дней + 1 итоговая
+    var tx = HX + 24 * cw + GAP, ty = HY + 7 * ch + GAP; // левый край итоговой колонки и верх строки
     heatGeom = { cw: cw, ch: ch };
     c2.font = '11px system-ui, sans-serif'; c2.textBaseline = 'middle';
     for (var row = 0; row < 7; row++) {
@@ -915,9 +916,11 @@ SPEED_JS = """
     for (hh2 = 0; hh2 < 24; hh2++) tot[hh2] = 0;
     Object.keys(cells).forEach(function (k) { tot[(+k) % 24] += cells[k].n; });
     for (hh2 = 0; hh2 < 24; hh2++) tMax = Math.max(tMax, tot[hh2]);
-    var ty = HY + 7 * ch + GAP;
-    c2.strokeStyle = dark ? 'rgba(139,148,158,.35)' : 'rgba(87,96,106,.3)'; // черта-разделитель над итогом
-    c2.beginPath(); c2.moveTo(HX, ty - GAP / 2 + .5); c2.lineTo(W - HR, ty - GAP / 2 + .5); c2.stroke();
+    c2.strokeStyle = dark ? 'rgba(139,148,158,.35)' : 'rgba(87,96,106,.3)'; // разделители итоговых строки и колонки
+    c2.beginPath();
+    c2.moveTo(HX, ty - GAP / 2 + .5); c2.lineTo(tx - GAP / 2, ty - GAP / 2 + .5);
+    c2.moveTo(tx - GAP / 2 + .5, HY); c2.lineTo(tx - GAP / 2 + .5, ty + ch);
+    c2.stroke();
     c2.fillStyle = cMut; c2.textAlign = 'right';
     c2.fillText('итог', HX - 6, ty + ch / 2);
     for (hh2 = 0; hh2 < 24; hh2++) {
@@ -929,6 +932,26 @@ SPEED_JS = """
         c2.fillText(String(Math.round(nT)), nx + cw / 2, ty + ch / 2);
       }
     }
+    // итоговая колонка: сумма коммитов по каждому дню недели; шкала своя, как у строки
+    var dtot = [], dMax = 1, all = 0, d2;
+    Object.keys(cells).forEach(function (k) {
+      var dn = Math.floor((+k) / 24), t = cells[k].n;
+      dtot[dn] = (dtot[dn] || 0) + t; all += t;
+    });
+    for (d2 = 0; d2 < 7; d2++) { dtot[d2] = dtot[d2] || 0; dMax = Math.max(dMax, dtot[d2]); }
+    for (d2 = 0; d2 < 7; d2++) { // порядок строк тот же (пн..вс), та же палитра и текст поверх
+      var dY = HY + d2 * ch, nD = dtot[(d2 + 1) % 7], lvD = lvOf(nD, dMax);
+      c2.fillStyle = PAL[lvD]; c2.fillRect(tx + 1, dY + 1, cw - 2, ch - 2);
+      if (nD) {
+        c2.fillStyle = textOn(PAL[lvD], dark); c2.textAlign = 'center';
+        c2.fillText(String(Math.round(nD)), tx + cw / 2, dY + ch / 2);
+      }
+    }
+    // угол сетки: grand total — muted-цифра на пустой клетке (свой уровень не выдумываем)
+    c2.fillStyle = PAL[0]; c2.fillRect(tx + 1, ty + 1, cw - 2, ch - 2);
+    c2.fillStyle = cMut; c2.textAlign = 'center';
+    if (all) c2.fillText(String(Math.round(all)), tx + cw / 2, ty + ch / 2);
+    c2.fillText('итог', tx + cw / 2, H - HB + 8); // подпись колонки — в полосе подписей часов
     c2.fillStyle = cMut; c2.textAlign = 'center';
     for (var h2 = 0; h2 < 24; h2 += 2) c2.fillText(String(h2), HX + h2 * cw + cw / 2, H - HB + 8);
     if (heatHover) { // подсветка ячейки под курсором
