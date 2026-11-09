@@ -681,7 +681,7 @@ SPEED_JS = """
   var fmtTick = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' });
   var fmtTip = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   var state = { focus: null }; // студент, на чьём имени сейчас курсор списка
-  var mode = 'rate'; // 'rate' — стр/ч, 'lines' — строк в коммите
+  var mode = 'lines'; // 'rate' — стр/ч, 'lines' — строк в коммите (дефолт: строк — шкала честнее)
   function targetAlpha(d) { // цель прозрачности: при наведении кривые студента сплошные, остальные едва видны
     if (d.hidden) return 0.04;
     if (state.focus) return d.student === state.focus ? 0.95 : 0.04;
@@ -695,7 +695,7 @@ SPEED_JS = """
   var ds = DATA.map(function (d) {
     return {
       label: d.s + ' · ' + d.b, student: d.s, branch: d.b, hue: hueOf(d.s), _a: 0.85,
-      data: d.p.map(function (pt) { return { x: pt[0], y: pt[1] === null ? 1 : pt[1], r: pt[1], l: pt[5], u: pt[2], h: pt[3], m: pt[4] }; }),
+      data: d.p.map(function (pt) { return { x: pt[0], y: pt[5], r: pt[1], l: pt[5], u: pt[2], h: pt[3], m: pt[4] }; }), // дефолт 'lines' → y = строки, setMode перекладывает при переключении
       borderColor: col, backgroundColor: col, pointBackgroundColor: col,
       pointBorderColor: 'transparent', pointBorderWidth: 0,
       pointRadius: 2.5, pointHoverRadius: 4.5, borderWidth: 1.4, tension: 0
@@ -751,7 +751,7 @@ SPEED_JS = """
         x: { type: 'linear',
              ticks: { maxRotation: 0, autoSkip: true, callback: function (v) { return fmtTick.format(new Date(v)); } },
              grid: { color: 'rgba(128,128,128,.15)' } },
-        y: { type: 'logarithmic', title: { display: true, text: 'скорость коммита, стр/ч (лог)' },
+        y: { type: 'logarithmic', title: { display: true, text: 'строк в коммите (лог)' },
              ticks: { callback: function (v) { // подписываем только 1,2,5 · 10^n, остальные деления прячем
                  var r = Math.round(Math.log10(v)), q = v / Math.pow(10, r);
                  if (Math.abs(q - 1) < 1e-9 || Math.abs(q - 2) < 1e-9 || Math.abs(q - 5) < 1e-9) return String(Math.round(v));
@@ -810,7 +810,7 @@ SPEED_JS = """
   var btns = document.querySelectorAll('#sp-mode button');
   // heat-map «день недели × час»: третья мода вместо кривых рисует сетку 7×24, где
   // цвет ячейки — число коммитов; агрегирует те же серии, что оставили фильтры, в окне «с/по»
-  var HINT = 'ячейка — число коммитов за час (МСК); наведите для деталей';
+  var HINT = 'ячейка — коммиты за час (МСК); наведение на студента — его heatmap';
   var heat = document.getElementById('speed-heat');
   var heatInfo = document.getElementById('sp-heat-info');
   var DAYS = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'];
@@ -822,6 +822,7 @@ SPEED_JS = """
     var cells = {};
     ds.forEach(function (d) {
       if (d.hidden) return;
+      if (state.focus && d.student !== state.focus) return; // изоляция по наведению — как у кривых
       d.data.forEach(function (p) {
         if (range.from != null && p.x < range.from) return;
         if (range.to != null && p.x > range.to) return;
@@ -988,8 +989,8 @@ SPEED_JS = """
   Array.prototype.forEach.call(document.getElementById('sp-list').children, function (li) {
     var s = li.getAttribute('data-student');
     li.querySelector('i').style.background = 'hsl(' + hueOf(s) + ',72%,55%)';
-    li.onmouseenter = function () { state.focus = s; glide(); };
-    li.onmouseleave = function () { state.focus = null; glide(); };
+    li.onmouseenter = function () { state.focus = s; glide(); if (mode === 'heat') drawHeat(); };
+    li.onmouseleave = function () { state.focus = null; glide(); if (mode === 'heat') drawHeat(); };
     li.onclick = function () { // как чекбокс: один клик — видеть только его, ещё клик — добавить ещё одного
       if (picked[s]) { delete picked[s]; li.classList.remove('on'); }
       else { picked[s] = true; li.classList.add('on'); }
@@ -1007,7 +1008,7 @@ def _speed_chart(charts: list[dict]) -> None:
     print('<div id="speed-wrap">')
     print('<div id="speed-side">')
     print('<div id="speed-controls"><select id="sp-lab"></select>')
-    print('<div id="sp-mode"><button data-mode="rate" class="on">стр/ч</button><button data-mode="lines">строк в коммите</button><button data-mode="heat">день×час</button></div>')
+    print('<div id="sp-mode"><button data-mode="rate">стр/ч</button><button data-mode="lines" class="on">строк в коммите</button><button data-mode="heat">день×час</button></div>')
     print('<div id="sp-times">')
     print('<label class="sp-dt"><input id="sp-from" type="text" placeholder="с: дд.мм.гггг чч:мм" spellcheck="false" autocomplete="off"><input type="datetime-local" tabindex="-1" aria-hidden="true"><button type="button" class="sp-cal" data-for="sp-from" title="выбрать дату">📅</button></label>')
     print('<label class="sp-dt"><input id="sp-to" type="text" placeholder="по: дд.мм.гггг чч:мм" spellcheck="false" autocomplete="off"><input type="datetime-local" tabindex="-1" aria-hidden="true"><button type="button" class="sp-cal" data-for="sp-to" title="выбрать дату">📅</button></label>')
@@ -1019,7 +1020,7 @@ def _speed_chart(charts: list[dict]) -> None:
         print(f'<li data-student="{s}"><i></i>{s}</li>')
     print('</ul>')
     print('</div>')
-    print('<div id="speed-box"><canvas id="speed-canvas"></canvas><canvas id="speed-heat"></canvas><div id="sp-heat-info">ячейка — число коммитов за час (МСК); наведите для деталей</div></div>')
+    print('<div id="speed-box"><canvas id="speed-canvas"></canvas><canvas id="speed-heat"></canvas><div id="sp-heat-info">ячейка — коммиты за час (МСК); наведение на студента — его heatmap</div></div>')
     print('</div>')
     print()
     print('<script type="application/json" id="speed-data">' + json.dumps(data, ensure_ascii=False).replace("</", "<\\/") + '</script>')
