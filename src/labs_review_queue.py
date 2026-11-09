@@ -285,12 +285,12 @@ def collect_student(
     stat_shas: set[str] = set()
     lab_chart: dict[str, dict[str, tuple[datetime, int, str]]] = {}
 
-    def add_points(branch: str, entries: list[tuple[object, str, int, str]]) -> None:
+    def add_points(branch: str, entries: list[tuple[object, str, int, str, int]]) -> None:
         pts = lab_chart.setdefault(branch, {})
-        for d, c_sha, a_, msg in entries:
+        for d, c_sha, a_, msg, dl in entries:
             if not isinstance(d, datetime) or a_ <= 0 or c_sha in pts:
                 continue
-            pts[c_sha] = (d, a_, msg)
+            pts[c_sha] = (d, a_, msg, dl)
 
     def msg_line(msg: str | None) -> str:
         return ((msg or "").splitlines() or [""])[0].strip()[:80]
@@ -450,7 +450,8 @@ def collect_student(
                         stats.lines_del += d_
                     add_points(name, [
                         (c.commit.author.date if c.commit.author is not None else None, c.sha,
-                         commit_line_stats(gh, owner, repo, c.sha, stat_cache)[0], msg_line(c.commit.message))
+                         commit_line_stats(gh, owner, repo, c.sha, stat_cache)[0], msg_line(c.commit.message),
+                         commit_line_stats(gh, owner, repo, c.sha, stat_cache)[1])
                         for c in commits_by_pr[p.number]
                         if not commit_is_teacher(c, teacher)
                     ])
@@ -488,7 +489,7 @@ def collect_student(
             pr_del = sum(d for _, d in line_by_sha.values())
             speed = lines_per_hour([(a, line_by_sha[sha][0]) for a, _, sha, _ in student_commits])
             msgs = {c.sha: msg_line(c.commit.message) for c in commits_by_pr[p.number]}
-            add_points(name, [(a, c_sha, line_by_sha[c_sha][0], msgs.get(c_sha, "")) for a, _, c_sha, _ in student_commits])
+            add_points(name, [(a, c_sha, line_by_sha[c_sha][0], msgs.get(c_sha, ""), line_by_sha[c_sha][1]) for a, _, c_sha, _ in student_commits])
             review_mark, teacher_seen, teacher_commit, foreign_reviews = review_summary(reviews_by_pr[p.number], teacher)
             push_dates = sorted(d for d, _ in branch_pushes)
             if isinstance(teacher_seen, datetime):
@@ -573,11 +574,11 @@ def collect_student(
     for name, pts in lab_chart.items():
         points: list[list] = []
         prev: datetime | None = None
-        for c_sha, (d, a_, msg) in sorted(pts.items(), key=lambda e: e[1][0]):
+        for c_sha, (d, a_, msg, dl) in sorted(pts.items(), key=lambda e: e[1][0]):
             rate: int | None = None
             if prev is not None and (h := (d - prev).total_seconds() / 3600) > 0:
                 rate = max(1, round(a_ / h))
-            points.append([int(d.timestamp() * 1000), rate, f"https://github.com/{owner}/{repo}/commit/{c_sha}", c_sha[:7], msg, a_])
+            points.append([int(d.timestamp() * 1000), rate, f"https://github.com/{owner}/{repo}/commit/{c_sha}", c_sha[:7], msg, a_, dl])
             prev = d
         if points:
             charts.append({"s": student, "b": name, "p": points, "st": b_status.get(name, "")})
@@ -960,17 +961,21 @@ SPEED_JS = """
   var mxCv = document.getElementById('speed-mx');
   var mxInfo = document.getElementById('sp-mx-info');
   var MHINT = 'строка — студент, столбец — лаба; число — коммиты; клик по ячейке — последний коммит';
-  var MXCOL = { merged: '#238636', queue: '#9e6a03', reviewed: '#1f6feb', nopr: '#6e7681' };
+  var MXCOL = { merged: '#3fb950', queue: '#d29922', reviewed: '#58a6ff', nopr: '#8b949e' }; // поярче — акценты GitHub dark
   var MXTXT = { merged: 'влита', queue: 'на проверке', reviewed: 'проверено', nopr: 'нет PR' };
   var mxCell = {}, mxNames = {}, mLabs = {};
   DATA.forEach(function (d) { // студент|ветка -> ячейка; пустые серии несут только статус
-    var n = d.p.length, add = 0;
-    d.p.forEach(function (pt) { add += pt[5]; });
-    mxCell[d.s + '|' + d.b] = { st: d.st || '', n: n, add: add, u: n ? d.p[n - 1][2] : '' };
+    var n = d.p.length, add = 0, dl = 0;
+    d.p.forEach(function (pt) { add += pt[5]; dl += pt[6] || 0; });
+    mxCell[d.s + '|' + d.b] = { st: d.st || '', n: n, add: add, dl: dl, u: n ? d.p[n - 1][2] : '' };
     mxNames[d.s] = 1; mLabs[d.b] = 1;
   });
-  var mxRowN = Object.keys(mxNames).sort();
   var mxColL = Object.keys(mLabs).sort();
+  var mxRowN = Object.keys(mxNames).sort(function (a, b) { // успевающие вверху: по числу затронутых лаб, далее по имени
+    var la = 0, lb = 0;
+    mxColL.forEach(function (l) { if (mxCell[a + '|' + l]) la++; if (mxCell[b + '|' + l]) lb++; });
+    return lb - la || (a < b ? -1 : 1);
+  });
   var mxRowShown = {}, mxCvShown = {}, mxAnim = 0, mxGeom = null, mxHover = null;
   function mxRowT(s) { // подсветка строки: наведение на имя сильнее, чем пик
     var any = Object.keys(picked).length > 0;
@@ -1004,7 +1009,7 @@ SPEED_JS = """
     var cMut = cs.getPropertyValue('--muted').trim() || '#57606a';
     var rgb = (getComputedStyle(document.body).backgroundColor.match(/\d+/g) || [255, 255, 255]).map(Number);
     var dark = .299 * rgb[0] + .587 * rgb[1] + .114 * rgb[2] < 140;
-    var empty = dark ? '#161b22' : '#ebedf0', n = mxRowN.length, m = mxColL.length, TOP = 24, BOT = 20, i;
+    var empty = dark ? '#161b22' : '#ebedf0', n = mxRowN.length, m = mxColL.length, TOP = 24, BOT = 36, i;
     c2.font = '11px system-ui, sans-serif'; c2.textBaseline = 'middle';
     var LW = 96;
     for (i = 0; i < n; i++) LW = Math.max(LW, Math.min(150, c2.measureText(mxRowN[i]).width + 14));
@@ -1026,12 +1031,14 @@ SPEED_JS = """
         c2.fillRect(LW + cw * c + 1, TOP + rh * r + 1, cw - 2, rh - 2);
         if (cell && cell.n) {
           c2.fillStyle = textOn(MXCOL[st] || empty, dark); c2.textAlign = 'center';
-          c2.fillText(String(cell.n), LW + cw * (c + .5), TOP + rh * (r + .5));
+          var txt = cell.add || cell.dl ? cell.n + ' (+' + cell.add + '/−' + cell.dl + ')' : String(cell.n);
+          if (c2.measureText(txt).width > cw - 8) txt = String(cell.n); // если не влезает — оставляем число коммитов
+          c2.fillText(txt, LW + cw * (c + .5), TOP + rh * (r + .5));
         }
       }
     }
     c2.globalAlpha = 1;
-    var lx = LW, ly = H - BOT / 2; // легенда статусов
+    var lx = LW, ly = H - BOT + 8; // легенда статусов: над инфо-строкой (BOT/2 под ней занят подсказкой)
     ['merged', 'queue', 'reviewed', 'nopr'].forEach(function (st) {
       c2.fillStyle = MXCOL[st]; c2.fillRect(lx, ly - 5, 10, 10);
       c2.fillStyle = cMut; c2.textAlign = 'left'; c2.font = '10px system-ui, sans-serif';
@@ -1054,7 +1061,7 @@ SPEED_JS = """
     if (!hov) { mxInfo.textContent = MHINT; return; }
     var s2 = mxRowN[hov.r], b = mxColL[hov.c], cell = mxCell[s2 + '|' + b];
     if (!cell) { mxInfo.textContent = s2 + ' · ' + b + ' — ещё не брался'; return; }
-    mxInfo.textContent = s2 + ' · ' + b + ' — ' + (MXTXT[cell.st] || 'статус не определён') + (cell.n ? ', ' + cell.n + ' комм.' : '') + (cell.add ? ', +' + cell.add + ' строк' : '');
+    mxInfo.textContent = s2 + ' · ' + b + ' — ' + (MXTXT[cell.st] || 'статус не определён') + (cell.n ? ', ' + cell.n + ' комм.' : '') + (cell.add || cell.dl ? ', +' + cell.add + '/−' + cell.dl : '');
   });
   mxCv.addEventListener('mouseleave', function () { mxHover = null; if (mode === 'matrix') { matrixPaint(); mxInfo.textContent = MHINT; } });
   mxCv.addEventListener('click', function () { // клик по ячейке — последний коммит лабы этого студента
