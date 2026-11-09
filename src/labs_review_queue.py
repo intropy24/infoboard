@@ -568,8 +568,10 @@ def collect_student(
         points: list[list] = []
         prev: datetime | None = None
         for c_sha, (d, a_, msg) in sorted(pts.items(), key=lambda e: e[1][0]):
+            rate: int | None = None
             if prev is not None and (h := (d - prev).total_seconds() / 3600) > 0:
-                points.append([int(d.timestamp() * 1000), max(1, round(a_ / h)), f"https://github.com/{owner}/{repo}/commit/{c_sha}", c_sha[:7], msg, a_])
+                rate = max(1, round(a_ / h))
+            points.append([int(d.timestamp() * 1000), rate, f"https://github.com/{owner}/{repo}/commit/{c_sha}", c_sha[:7], msg, a_])
             prev = d
         if points:
             charts.append({"s": student, "b": name, "p": points})
@@ -692,7 +694,7 @@ SPEED_JS = """
   var ds = DATA.map(function (d) {
     return {
       label: d.s + ' · ' + d.b, student: d.s, branch: d.b, hue: hueOf(d.s),
-      data: d.p.map(function (pt) { return { x: pt[0], y: pt[1], r: pt[1], l: pt[5], u: pt[2], h: pt[3], m: pt[4] }; }),
+      data: d.p.map(function (pt) { return { x: pt[0], y: pt[1] === null ? 1 : pt[1], r: pt[1], l: pt[5], u: pt[2], h: pt[3], m: pt[4] }; }),
       borderColor: col, backgroundColor: col, pointBackgroundColor: col,
       pointBorderColor: 'transparent', pointBorderWidth: 0,
       pointRadius: 2.5, pointHoverRadius: 4.5, borderWidth: 1.4, tension: 0
@@ -758,7 +760,11 @@ SPEED_JS = """
         legend: { display: false },
         tooltip: { callbacks: {
           title: function (items) { return items.length ? fmtTip.format(new Date(items[0].parsed.x)) : ''; },
-          label: function (ctx) { var r = ctx.raw; return mode === 'rate' ? ctx.dataset.label + ': +' + r.l + ' строк → ' + ctx.parsed.y + ' стр/ч' : ctx.dataset.label + ': +' + r.l + ' строк'; },
+          label: function (ctx) {
+            var r = ctx.raw;
+            if (mode === 'rate' && r.r === null) return ctx.dataset.label + ': +' + r.l + ' строк — темп не измерим (первый или одновременный коммит)';
+            return mode === 'rate' ? ctx.dataset.label + ': +' + r.l + ' строк → ' + ctx.parsed.y + ' стр/ч' : ctx.dataset.label + ': +' + r.l + ' строк';
+          },
           afterLabel: function (ctx) { return ctx.raw.m ? '«' + ctx.raw.m + '»' : ''; } } }
       }
     }
@@ -783,7 +789,7 @@ SPEED_JS = """
   var btns = document.querySelectorAll('#sp-mode button');
   function setMode(m) { // метрика Y переключается на лету: обе величины лежат в каждой точке
     mode = m;
-    ds.forEach(function (d) { d.data.forEach(function (p) { p.y = m === 'rate' ? p.r : p.l; }); });
+    ds.forEach(function (d) { d.data.forEach(function (p) { p.y = m === 'rate' ? (p.r === null ? 1 : p.r) : p.l; }); });
     chart.options.scales.y.title.text = m === 'rate' ? 'скорость коммита, стр/ч (лог)' : 'строк в коммите (лог)';
     Array.prototype.forEach.call(btns, function (b) { b.classList.toggle('on', b.getAttribute('data-mode') === m); });
     chart.update('none');
