@@ -781,7 +781,7 @@ SPEED_JS = """
     var from = ds.map(function (d) { return d._a; });
     var to = ds.map(targetAlpha);
     (function step(now) {
-      var k = Math.min(1, (now - t0) / 300), e = k * (2 - k);
+      var k = Math.min(1, (now - t0) / 100), e = k * (2 - k);
       ds.forEach(function (d, i) { d._a = from[i] + (to[i] - from[i]) * e; });
       chart.update('none');
       if (k < 1) animId = requestAnimationFrame(step);
