@@ -673,10 +673,16 @@ SPEED_JS = """
   var el = document.getElementById('speed-data');
   if (!el || !window.Chart) return;
   var DATA = JSON.parse(el.textContent);
-  function hueOf(name) { // стабильный цвет студента: хэш ника в тон палитры
-    var h = 0;
-    for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+  var hues = (function () { // цвета студентов: имена сортируются по хэшу и получают
+    var h = {}, seen = {}; // равномерно разнесённые оттенки — в старом хэше 20 студентов
+    function hs(n) { var v = 0; for (var i = 0; i < n.length; i++) v = (v * 31 + n.charCodeAt(i)) % 2147483647; return v; }
+    var names = DATA.map(function (d) { return d.s; }).filter(function (s) { return !seen[s] && (seen[s] = 1); });
+    names.sort(function (a, b) { return hs(a) - hs(b); });
+    names.forEach(function (s, i) { h[s] = Math.round((i * 360) / names.length) % 360; });
     return h;
+  })();
+  function hueOf(name) { // цвет студента: шаг 360/N по кругу, повторов нет
+    return name in hues ? hues[name] : 0;
   }
   var fmtTick = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' });
   var fmtTip = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -817,7 +823,7 @@ SPEED_JS = """
   var HX = 34, HY = 8, HR = 8, HB = 36; // поля под подписи дней и часов
   var heatGeom = null; // {cw, ch} — превращаем пиксели мыши в номер ячейки
   var heatHover = null; // {day, hour} ячейки под курсором (day: 0=вс)
-  var heatCur = {}; // клетки последней отрисовки — источник подписи при наведении
+  var heatCur = {}; // целевые клетки — подсказка показывает цель, а не середину твина
   function heatCells() { // {day*24+hour: {n, who}} по коммитам видимых серий в окне «с/по»
     var cells = {};
     ds.forEach(function (d) {
@@ -834,19 +840,45 @@ SPEED_JS = """
     });
     return cells;
   }
-  function drawHeat() {
+  var heatShown = {}; // клетки, видимые сейчас — твин интерполирует от них
+  var heatAnim = 0; // rAF хендл плавного fade heatmap
+  function drawHeat() { // та же плавность, что у кривых: ведём heatmap от heatShown к цели
+    var to = heatCur = heatCells();
+    cancelAnimationFrame(heatAnim);
+    var from = heatShown, t0 = performance.now(), keys = {};
+    Object.keys(from).forEach(function (k) { keys[k] = 1; });
+    Object.keys(to).forEach(function (k) { keys[k] = 1; });
+    (function step(now) {
+      var k = Math.min(1, (now - t0) / 100), e = k * (2 - k); // easeOutQuad, те же 100мс, что у glide
+      var mid = {};
+      Object.keys(keys).forEach(function (kk) {
+        var a = (from[kk] && from[kk].n) || 0, b = (to[kk] && to[kk].n) || 0, v = a + (b - a) * e;
+        if (v > 0.02) mid[kk] = { n: v, who: (to[kk] || from[kk]).who };
+      });
+      heatShown = mid;
+      heatPaint();
+      if (k < 1) heatAnim = requestAnimationFrame(step); else { heatShown = to; heatPaint(); }
+    })(t0);
+  }
+  function heatPaint() {
     var box = heat.parentElement, W = box.clientWidth, H = box.clientHeight;
     if (!W || !H) return;
     var dpr = window.devicePixelRatio || 1;
-    heat.width = W * dpr; heat.height = H * dpr; // под HiDPI, иначе мыло
+    if (heat.width !== W * dpr || heat.height !== H * dpr) { heat.width = W * dpr; heat.height = H * dpr; } // под HiDPI, иначе мыло
     var c2 = heat.getContext('2d');
     c2.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // цвета берём из темы страницы — heatmap не должен выглядеть белой заплаткой в dark
+    // цвета — из темы страницы; палитра сетки — каноничные зелёные GitHub-календаря
     var cs = getComputedStyle(document.documentElement);
     var cMut = cs.getPropertyValue('--muted').trim() || '#57606a';
-    var cFg = cs.getPropertyValue('--fg').trim() || '#1f2328';
-    var cells = heatCur = heatCells(), max = 1;
+    var rgb = (getComputedStyle(document.body).backgroundColor.match(/\d+/g) || [255, 255, 255]).map(Number);
+    var dark = .299 * rgb[0] + .587 * rgb[1] + .114 * rgb[2] < 140; // тёмная тема — по яркости фона
+    var PAL = dark ? ['#161b22', '#0e4429', '#006d32', '#26a641', '#39d353']
+                   : ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39'];
+    var cells = heatShown, max = 1;
     Object.keys(cells).forEach(function (k) { max = Math.max(max, cells[k].n); });
+    c2.clearRect(0, 0, W, H); // перерисовка поверх старых пикселей оставила бы хвосты подсветки
+    function lvOf(n) { if (!n) return 0; var q = Math.sqrt(n / max); return q > .75 ? 4 : q > .5 ? 3 : q > .25 ? 2 : 1; } // sqrt — редкие часы не тонут
+    function textOn(hex) { var L = .299 * parseInt(hex.slice(1, 3), 16) + .587 * parseInt(hex.slice(3, 5), 16) + .114 * parseInt(hex.slice(5, 7), 16); return L > 140 ? (dark ? '#0d1117' : '#1f2328') : '#fff'; }
     var cw = (W - HX - HR) / 24, ch = (H - HY - HB) / 7;
     heatGeom = { cw: cw, ch: ch };
     c2.font = '11px system-ui, sans-serif'; c2.textBaseline = 'middle';
@@ -856,12 +888,12 @@ SPEED_JS = """
       c2.fillText(DAYS[row], HX - 6, HY + ch * (row + .5));
       for (var hh = 0; hh < 24; hh++) {
         var x = HX + hh * cw, y = HY + row * ch, cc = cells[day * 24 + hh];
-        var n = cc ? cc.n : 0, a = n ? 0.12 + 0.88 * Math.sqrt(n / max) : 0; // sqrt — редкие часы не тонут
-        c2.fillStyle = n ? 'rgba(56,139,253,' + a.toFixed(3) + ')' : 'rgba(139,148,158,.14)';
+        var n = cc ? cc.n : 0, lv = lvOf(n);
+        c2.fillStyle = PAL[lv];
         c2.fillRect(x + 1, y + 1, cw - 2, ch - 2);
         if (n) {
-          c2.fillStyle = a > .55 ? '#fff' : cFg; c2.textAlign = 'center';
-          c2.fillText(String(n), x + cw / 2, y + ch / 2);
+          c2.fillStyle = textOn(PAL[lv]); c2.textAlign = 'center';
+          c2.fillText(String(Math.round(n)), x + cw / 2, y + ch / 2);
         }
       }
     }
@@ -880,7 +912,7 @@ SPEED_JS = """
     var row = Math.floor((e.clientY - r.top - HY) / heatGeom.ch);
     var hov = (hh >= 0 && hh < 24 && row >= 0 && row < 7) ? { hour: hh, day: (row + 1) % 7 } : null;
     var same = !!(hov && heatHover && hov.day === heatHover.day && hov.hour === heatHover.hour);
-    if (!same && (hov || heatHover)) { heatHover = hov; drawHeat(); } // перерисовка только при смене ячейки
+    if (!same && (hov || heatHover)) { heatHover = hov; heatPaint(); } // перерисовка только при смене ячейки
     if (!hov) { heatInfo.textContent = HINT; return; }
     var cc = heatCur[hov.day * 24 + hov.hour];
     var span = DAYS[(hov.day + 6) % 7] + ' ' + hov.hour + ':00–' + ((hov.hour + 1) % 24) + ':00';
@@ -888,7 +920,7 @@ SPEED_JS = """
     var who = Object.keys(cc.who);
     heatInfo.textContent = span + ' — ' + cc.n + ' комм.: ' + who.slice(0, 4).join(', ') + (who.length > 4 ? ' +' + (who.length - 4) : '');
   });
-  heat.addEventListener('mouseleave', function () { heatHover = null; if (mode === 'heat') { drawHeat(); heatInfo.textContent = HINT; } });
+  heat.addEventListener('mouseleave', function () { heatHover = null; if (mode === 'heat') { heatPaint(); heatInfo.textContent = HINT; } });
   // переключение темы (🌓 меняет data-theme на <html>) — перекрашиваем heatmap на лету
   if (window.MutationObserver) new MutationObserver(function () { if (mode === 'heat') drawHeat(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   function setMode(m) { // переключение метрики Y / heat-map: все величины уже лежат в точках
