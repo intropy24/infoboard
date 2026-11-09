@@ -682,18 +682,19 @@ SPEED_JS = """
   var fmtTip = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   var state = { focus: null }; // студент, на чьём имени сейчас курсор списка
   var mode = 'rate'; // 'rate' — стр/ч, 'lines' — строк в коммите
-  function alpha(d) { // при наведении: кривые студента почти сплошные, остальные едва видны
+  function targetAlpha(d) { // цель прозрачности: при наведении кривые студента сплошные, остальные едва видны
+    if (d.hidden) return 0.04;
     if (state.focus) return d.student === state.focus ? 0.95 : 0.04;
     return 0.85;
   }
-  function col(ctx) { // scriptable-цвет: пересчитывается при каждой отрисовке, поэтому
-    var d = ctx.dataset; // и линии, и точки всегда ровно в цвете студента (в тёмной теме тоже)
+  function col(ctx) { // scriptable-цвет: читает текущее _a — его плавно ведёт rAF-анимация
+    var d = ctx.dataset;
     var l = state.focus && d.student === state.focus ? 62 : 55;
-    return 'hsla(' + d.hue + ',72%,' + l + '%,' + alpha(d) + ')';
+    return 'hsla(' + d.hue + ',72%,' + l + '%,' + d._a + ')';
   }
   var ds = DATA.map(function (d) {
     return {
-      label: d.s + ' · ' + d.b, student: d.s, branch: d.b, hue: hueOf(d.s),
+      label: d.s + ' · ' + d.b, student: d.s, branch: d.b, hue: hueOf(d.s), _a: 0.85,
       data: d.p.map(function (pt) { return { x: pt[0], y: pt[1] === null ? 1 : pt[1], r: pt[1], l: pt[5], u: pt[2], h: pt[3], m: pt[4] }; }),
       borderColor: col, backgroundColor: col, pointBackgroundColor: col,
       pointBorderColor: 'transparent', pointBorderWidth: 0,
@@ -769,6 +770,21 @@ SPEED_JS = """
       }
     }
   });
+  // плавность подсветки: альфа каждой кривой ведётся к цели через rAF (easeOutQuad),
+  // chart.update('none') дал бы мгновенный скачок — анимируем сами через chart.render()
+  var animId = 0;
+  function glide() {
+    cancelAnimationFrame(animId);
+    var t0 = performance.now();
+    var from = ds.map(function (d) { return d._a; });
+    var to = ds.map(targetAlpha);
+    (function step(now) {
+      var k = Math.min(1, (now - t0) / 300), e = k * (2 - k);
+      ds.forEach(function (d, i) { d._a = from[i] + (to[i] - from[i]) * e; });
+      chart.render();
+      if (k < 1) animId = requestAnimationFrame(step);
+    })(t0);
+  }
   var selL = document.getElementById('sp-lab');
   var picked = {}; // клики по списку студентов работают как чекбоксы: пусто = показываем всех
   var labs = [];
@@ -780,6 +796,7 @@ SPEED_JS = """
       d.hidden = !((!any || picked[d.student]) && (!selL.value || d.branch === selL.value));
     });
     chart.update('none');
+    glide();
   }
   (function () {
     var o = document.createElement('option'); o.value = ''; o.textContent = 'все лабы'; selL.appendChild(o);
@@ -878,8 +895,8 @@ SPEED_JS = """
   Array.prototype.forEach.call(document.getElementById('sp-list').children, function (li) {
     var s = li.getAttribute('data-student');
     li.querySelector('i').style.background = 'hsl(' + hueOf(s) + ',72%,55%)';
-    li.onmouseenter = function () { state.focus = s; chart.update('none'); };
-    li.onmouseleave = function () { state.focus = null; chart.update('none'); };
+    li.onmouseenter = function () { state.focus = s; glide(); };
+    li.onmouseleave = function () { state.focus = null; glide(); };
     li.onclick = function () { // как чекбокс: один клик — видеть только его, ещё клик — добавить ещё одного
       if (picked[s]) { delete picked[s]; li.classList.remove('on'); }
       else { picked[s] = true; li.classList.add('on'); }
