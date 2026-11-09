@@ -283,14 +283,17 @@ def collect_student(
     stats = StudentStats(student=student)
     student_shas: set[str] = set()
     stat_shas: set[str] = set()
-    lab_chart: dict[str, dict[str, list]] = {}
+    lab_chart: dict[str, dict[str, tuple[datetime, int, str]]] = {}
 
-    def add_points(branch: str, entries: list[tuple[object, str, int]]) -> None:
+    def add_points(branch: str, entries: list[tuple[object, str, int, str]]) -> None:
         pts = lab_chart.setdefault(branch, {})
-        for d, c_sha, a_ in entries:
+        for d, c_sha, a_, msg in entries:
             if not isinstance(d, datetime) or a_ <= 0 or c_sha in pts:
                 continue
-            pts[c_sha] = [int(d.timestamp() * 1000), a_, f"https://github.com/{owner}/{repo}/commit/{c_sha}", c_sha[:7]]
+            pts[c_sha] = (d, a_, msg)
+
+    def msg_line(msg: str | None) -> str:
+        return ((msg or "").splitlines() or [""])[0].strip()[:80]
 
     def get_branches() -> list[tuple[str, str]]:
         return list(iter_branches(gh, owner, repo))
@@ -442,7 +445,8 @@ def collect_student(
                         stats.lines_add += a_
                         stats.lines_del += d_
                     add_points(name, [
-                        (c.commit.author.date if c.commit.author is not None else None, c.sha, commit_line_stats(gh, owner, repo, c.sha, stat_cache)[0])
+                        (c.commit.author.date if c.commit.author is not None else None, c.sha,
+                         commit_line_stats(gh, owner, repo, c.sha, stat_cache)[0], msg_line(c.commit.message))
                         for c in commits_by_pr[p.number]
                         if not commit_is_teacher(c, teacher)
                     ])
@@ -479,7 +483,8 @@ def collect_student(
             pr_add = sum(a for a, _ in line_by_sha.values())
             pr_del = sum(d for _, d in line_by_sha.values())
             speed = lines_per_hour([(a, line_by_sha[sha][0]) for a, _, sha, _ in student_commits])
-            add_points(name, [(a, c_sha, line_by_sha[c_sha][0]) for a, _, c_sha, _ in student_commits])
+            msgs = {c.sha: msg_line(c.commit.message) for c in commits_by_pr[p.number]}
+            add_points(name, [(a, c_sha, line_by_sha[c_sha][0], msgs.get(c_sha, "")) for a, _, c_sha, _ in student_commits])
             review_mark, teacher_seen, teacher_commit, foreign_reviews = review_summary(reviews_by_pr[p.number], teacher)
             push_dates = sorted(d for d, _ in branch_pushes)
             if isinstance(teacher_seen, datetime):
@@ -558,7 +563,16 @@ def collect_student(
                 checks=checks_by_branch.get(name, "—"),
                 checks_url=f"https://github.com/{owner}/{repo}/commit/{sha}/checks",
             ))
-    charts = [{"s": student, "b": name, "p": sorted(pts.values())} for name, pts in lab_chart.items() if pts]
+    charts: list[dict] = []
+    for name, pts in lab_chart.items():
+        points: list[list] = []
+        prev: datetime | None = None
+        for c_sha, (d, a_, msg) in sorted(pts.items(), key=lambda e: e[1][0]):
+            if prev is not None and (h := (d - prev).total_seconds() / 3600) > 0:
+                points.append([int(d.timestamp() * 1000), max(1, round(a_ / h)), f"https://github.com/{owner}/{repo}/commit/{c_sha}", c_sha[:7], msg, a_])
+            prev = d
+        if points:
+            charts.append({"s": student, "b": name, "p": points})
     stats.pushes = student_push_count(repo_events, student, student_shas)
     return queue, reviewed, no_pr, stats, charts
 
@@ -677,7 +691,7 @@ SPEED_JS = """
   var ds = DATA.map(function (d) {
     return {
       label: d.s + ' · ' + d.b, student: d.s, branch: d.b, hue: hueOf(d.s),
-      data: d.p.map(function (pt) { return { x: pt[0], y: pt[1], u: pt[2], h: pt[3] }; }),
+      data: d.p.map(function (pt) { return { x: pt[0], y: pt[1], u: pt[2], h: pt[3], m: pt[4], v: pt[5] }; }),
       borderColor: col, backgroundColor: col, pointBackgroundColor: col,
       pointBorderColor: 'transparent', pointBorderWidth: 0,
       pointRadius: 2.5, pointHoverRadius: 4.5, borderWidth: 1.4, tension: 0
@@ -700,7 +714,7 @@ SPEED_JS = """
         x: { type: 'linear',
              ticks: { maxRotation: 0, autoSkip: true, callback: function (v) { return fmtTick.format(new Date(v)); } },
              grid: { color: 'rgba(128,128,128,.15)' } },
-        y: { type: 'logarithmic', title: { display: true, text: 'строк в коммите (лог-шкала)' },
+        y: { type: 'logarithmic', title: { display: true, text: 'скорость коммита, стр/ч (лог)' },
              ticks: { callback: function (v) { // подписываем только 1,2,5 · 10^n, остальные деления прячем
                  var r = Math.round(Math.log10(v)), q = v / Math.pow(10, r);
                  if (Math.abs(q - 1) < 1e-9 || Math.abs(q - 2) < 1e-9 || Math.abs(q - 5) < 1e-9) return String(Math.round(v));
@@ -711,8 +725,8 @@ SPEED_JS = """
         legend: { display: false },
         tooltip: { callbacks: {
           title: function (items) { return items.length ? fmtTip.format(new Date(items[0].parsed.x)) : ''; },
-          label: function (ctx) { return ctx.dataset.label + ': +' + ctx.parsed.y + ' строк'; },
-          afterLabel: function (ctx) { return ctx.raw.h ? ctx.raw.h + ' — клик: открыть коммит' : ''; } } }
+          label: function (ctx) { return ctx.dataset.label + ': +' + ctx.raw.v + ' строк → ' + ctx.parsed.y + ' стр/ч'; },
+          afterLabel: function (ctx) { return ctx.raw.m ? '«' + ctx.raw.m + '»' : ''; } } }
       }
     }
   });
@@ -747,7 +761,7 @@ def _speed_chart(charts: list[dict]) -> None:
     data = [c for c in charts if c["p"]]
     if not data:
         return
-    print("## ⚡ Коммиты — строк в коммите (все живые PR'ы)")
+    print("## ⚡ Коммиты — скорость, стр/ч (все живые PR'ы)")
     print()
     print('<div id="speed-wrap">')
     print('<div id="speed-side">')
@@ -760,7 +774,7 @@ def _speed_chart(charts: list[dict]) -> None:
     print('<div id="speed-box"><canvas id="speed-canvas"></canvas></div>')
     print('</div>')
     print()
-    print('<script type="application/json" id="speed-data">' + json.dumps(data, ensure_ascii=False) + '</script>')
+    print('<script type="application/json" id="speed-data">' + json.dumps(data, ensure_ascii=False).replace("</", "<\\/") + '</script>')
     print()
     print('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>')
     print()
