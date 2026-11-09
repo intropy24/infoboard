@@ -698,19 +698,36 @@ SPEED_JS = """
       pointRadius: 2.5, pointHoverRadius: 4.5, borderWidth: 1.4, tension: 0
     };
   });
+  var drag = null; // идёт выделение рамкой: {x0, x1} в пикселях канваса
+  var draggedOnce = false; // после перетаскивания подавляем клик, иначе открылся бы коммит
+  var dragRect = { // полупрозрачная рамка выделения прямо на канвасе, по-графановски
+    id: 'sp-drag-rect',
+    afterDraw: function (ch) {
+      if (!drag) return;
+      var c2 = ch.ctx, ar = ch.chartArea, a = Math.min(drag.x0, drag.x1), w = Math.abs(drag.x1 - drag.x0);
+      c2.save();
+      c2.fillStyle = 'rgba(56,139,253,.15)';
+      c2.fillRect(a, ar.top, w, ar.bottom - ar.top);
+      c2.strokeStyle = 'rgba(56,139,253,.7)';
+      c2.strokeRect(a + .5, ar.top + .5, w, ar.bottom - ar.top - 1);
+      c2.restore();
+    }
+  };
   var chart = new Chart(document.getElementById('speed-canvas'), {
     type: 'line',
     data: { datasets: ds },
+    plugins: [dragRect],
     options: {
       responsive: true, maintainAspectRatio: false, animation: false,
       interaction: { mode: 'nearest', axis: 'xy', intersect: false },
       // точка = коммит: клик открывает страницу коммита
       onClick: function (e, els, ch) {
+        if (draggedOnce) { draggedOnce = false; return; }
         if (!els.length) return;
         var raw = ch.data.datasets[els[0].datasetIndex].data[els[0].index];
         if (raw && raw.u) window.open(raw.u, '_blank');
       },
-      onHover: function (e, els) { if (e.native && e.native.target) e.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
+      onHover: function (e, els) { if (e.native && e.native.target && !drag) e.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
       scales: {
         x: { type: 'linear',
              ticks: { maxRotation: 0, autoSkip: true, callback: function (v) { return fmtTick.format(new Date(v)); } },
@@ -757,6 +774,51 @@ SPEED_JS = """
     chart.update('none');
   }
   Array.prototype.forEach.call(btns, function (b) { b.onclick = function () { setMode(b.getAttribute('data-mode')); }; });
+  // выделение отрезка времени: тянем рамку по графику -> зум по X и заполнение «с/по»;
+  // диапазон можно ввести и руками, сброс — кнопкой ×
+  var inpF = document.getElementById('sp-from'), inpT = document.getElementById('sp-to');
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function toInput(ms) {
+    if (ms == null) return '';
+    var d = new Date(ms);
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+  function applyTime(from, to) { // мс или null — границы окна по X
+    chart.options.scales.x.min = from == null ? undefined : from;
+    chart.options.scales.x.max = to == null ? undefined : to;
+    inpF.value = toInput(from); inpT.value = toInput(to);
+    chart.update('none');
+  }
+  function onInputTime() {
+    var f = inpF.value ? new Date(inpF.value).getTime() : null;
+    var t = inpT.value ? new Date(inpT.value).getTime() : null;
+    if (f != null && t != null && f >= t) return; // перевёрнутый диапазон — ждём доводки
+    applyTime(f, t);
+  }
+  inpF.onchange = onInputTime; inpT.onchange = onInputTime;
+  document.getElementById('sp-reset').onclick = function () { applyTime(null, null); };
+  var canvas = chart.canvas;
+  canvas.addEventListener('mousedown', function (e) {
+    if (e.button !== 0) return;
+    var r = canvas.getBoundingClientRect();
+    drag = { x0: e.clientX - r.left, x1: e.clientX - r.left };
+    canvas.style.cursor = 'crosshair';
+  });
+  canvas.addEventListener('mousemove', function (e) {
+    if (!drag) return;
+    var r = canvas.getBoundingClientRect(), ar = chart.chartArea;
+    drag.x1 = Math.max(ar.left, Math.min(ar.right, e.clientX - r.left));
+    chart.render();
+  });
+  window.addEventListener('mouseup', function () {
+    if (!drag) return;
+    var a = Math.min(drag.x0, drag.x1), b = Math.max(drag.x0, drag.x1);
+    drag = null;
+    canvas.style.cursor = 'default';
+    if (b - a < 5) { chart.render(); return; } // это был обычный клик, не выделение
+    draggedOnce = true;
+    applyTime(chart.scales.x.getValueForPixel(a), chart.scales.x.getValueForPixel(b));
+  });
   Array.prototype.forEach.call(document.getElementById('sp-list').children, function (li) {
     var s = li.getAttribute('data-student');
     li.querySelector('i').style.background = 'hsl(' + hueOf(s) + ',72%,55%)';
@@ -781,7 +843,9 @@ def _speed_chart(charts: list[dict]) -> None:
     print('<div id="speed-wrap">')
     print('<div id="speed-side">')
     print('<div id="speed-controls"><select id="sp-lab"></select>')
-    print('<div id="sp-mode"><button data-mode="rate" class="on">стр/ч</button><button data-mode="lines">строк в коммите</button></div></div>')
+    print('<div id="sp-mode"><button data-mode="rate" class="on">стр/ч</button><button data-mode="lines">строк в коммите</button></div>')
+    print('<div id="sp-times"><label>с <input type="datetime-local" id="sp-from"></label><label>по <input type="datetime-local" id="sp-to"></label><button id="sp-reset" title="показать всё время">×</button></div>')
+    print('</div>')
     print('<ul id="sp-list">')
     for s in sorted({d["s"] for d in data}):
         print(f'<li data-student="{s}"><i></i>{s}</li>')
