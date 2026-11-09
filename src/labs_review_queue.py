@@ -679,6 +679,7 @@ SPEED_JS = """
   var fmtTick = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' });
   var fmtTip = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   var state = { focus: null }; // студент, на чьём имени сейчас курсор списка
+  var mode = 'rate'; // 'rate' — стр/ч, 'lines' — строк в коммите
   function alpha(d) { // при наведении: кривые студента почти сплошные, остальные едва видны
     if (state.focus) return d.student === state.focus ? 0.95 : 0.04;
     return 0.85;
@@ -691,7 +692,7 @@ SPEED_JS = """
   var ds = DATA.map(function (d) {
     return {
       label: d.s + ' · ' + d.b, student: d.s, branch: d.b, hue: hueOf(d.s),
-      data: d.p.map(function (pt) { return { x: pt[0], y: pt[1], u: pt[2], h: pt[3], m: pt[4], v: pt[5] }; }),
+      data: d.p.map(function (pt) { return { x: pt[0], y: pt[1], r: pt[1], l: pt[5], u: pt[2], h: pt[3], m: pt[4] }; }),
       borderColor: col, backgroundColor: col, pointBackgroundColor: col,
       pointBorderColor: 'transparent', pointBorderWidth: 0,
       pointRadius: 2.5, pointHoverRadius: 4.5, borderWidth: 1.4, tension: 0
@@ -725,33 +726,47 @@ SPEED_JS = """
         legend: { display: false },
         tooltip: { callbacks: {
           title: function (items) { return items.length ? fmtTip.format(new Date(items[0].parsed.x)) : ''; },
-          label: function (ctx) { return ctx.dataset.label + ': +' + ctx.raw.v + ' строк → ' + ctx.parsed.y + ' стр/ч'; },
+          label: function (ctx) { var r = ctx.raw; return mode === 'rate' ? ctx.dataset.label + ': +' + r.l + ' строк → ' + ctx.parsed.y + ' стр/ч' : ctx.dataset.label + ': +' + r.l + ' строк'; },
           afterLabel: function (ctx) { return ctx.raw.m ? '«' + ctx.raw.m + '»' : ''; } } }
       }
     }
   });
-  var selS = document.getElementById('sp-student'), selL = document.getElementById('sp-lab');
-  var students = [], labs = [];
-  DATA.forEach(function (d) { if (students.indexOf(d.s) < 0) students.push(d.s); if (labs.indexOf(d.b) < 0) labs.push(d.b); });
-  students.sort(); labs.sort();
+  var selL = document.getElementById('sp-lab');
+  var picked = {}; // клики по списку студентов работают как чекбоксы: пусто = показываем всех
+  var labs = [];
+  DATA.forEach(function (d) { if (labs.indexOf(d.b) < 0) labs.push(d.b); });
+  labs.sort();
   function apply() {
+    var any = Object.keys(picked).length > 0;
     ds.forEach(function (d) {
-      d.hidden = !((!selS.value || d.student === selS.value) && (!selL.value || d.branch === selL.value));
+      d.hidden = !((!any || picked[d.student]) && (!selL.value || d.branch === selL.value));
     });
     chart.update('none');
   }
-  function fill(sel, vals, all) {
-    var o = document.createElement('option'); o.value = ''; o.textContent = all; sel.appendChild(o);
-    vals.forEach(function (v) { var e = document.createElement('option'); e.value = v; e.textContent = v; sel.appendChild(e); });
-    sel.onchange = apply;
+  (function () {
+    var o = document.createElement('option'); o.value = ''; o.textContent = 'все лабы'; selL.appendChild(o);
+    labs.forEach(function (v) { var e = document.createElement('option'); e.value = v; e.textContent = v; selL.appendChild(e); });
+    selL.onchange = apply;
+  })();
+  var btns = document.querySelectorAll('#sp-mode button');
+  function setMode(m) { // метрика Y переключается на лету: обе величины лежат в каждой точке
+    mode = m;
+    ds.forEach(function (d) { d.data.forEach(function (p) { p.y = m === 'rate' ? p.r : p.l; }); });
+    chart.options.scales.y.title.text = m === 'rate' ? 'скорость коммита, стр/ч (лог)' : 'строк в коммите (лог)';
+    Array.prototype.forEach.call(btns, function (b) { b.classList.toggle('on', b.getAttribute('data-mode') === m); });
+    chart.update('none');
   }
-  fill(selS, students, 'все студенты');
-  fill(selL, labs, 'все лабы');
+  Array.prototype.forEach.call(btns, function (b) { b.onclick = function () { setMode(b.getAttribute('data-mode')); }; });
   Array.prototype.forEach.call(document.getElementById('sp-list').children, function (li) {
     var s = li.getAttribute('data-student');
     li.querySelector('i').style.background = 'hsl(' + hueOf(s) + ',72%,55%)';
     li.onmouseenter = function () { state.focus = s; chart.update('none'); };
     li.onmouseleave = function () { state.focus = null; chart.update('none'); };
+    li.onclick = function () { // как чекбокс: один клик — видеть только его, ещё клик — добавить ещё одного
+      if (picked[s]) { delete picked[s]; li.classList.remove('on'); }
+      else { picked[s] = true; li.classList.add('on'); }
+      apply();
+    };
   });
 })();
 """
@@ -761,11 +776,12 @@ def _speed_chart(charts: list[dict]) -> None:
     data = [c for c in charts if c["p"]]
     if not data:
         return
-    print("## ⚡ Коммиты — скорость, стр/ч (все живые PR'ы)")
+    print("## ⚡ Коммиты — все живые PR'ы (стр/ч ↔ строк в коммите)")
     print()
     print('<div id="speed-wrap">')
     print('<div id="speed-side">')
-    print('<div id="speed-controls"><select id="sp-student"></select><select id="sp-lab"></select></div>')
+    print('<div id="speed-controls"><select id="sp-lab"></select>')
+    print('<div id="sp-mode"><button data-mode="rate" class="on">стр/ч</button><button data-mode="lines">строк в коммите</button></div></div>')
     print('<ul id="sp-list">')
     for s in sorted({d["s"] for d in data}):
         print(f'<li data-student="{s}"><i></i>{s}</li>')

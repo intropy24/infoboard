@@ -43,9 +43,14 @@
       #speed-controls { display: flex; flex-direction: column; gap: .4rem; margin-bottom: .6rem; }
       #speed-controls select { background: var(--th); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; }
       #sp-list { list-style: none; margin: 0; padding: 0; max-height: 420px; overflow-y: auto; font-size: .9em; }
-      #sp-list li { padding: 3px 8px; border-radius: 6px; cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #sp-list li { padding: 3px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       #sp-list li:hover { background: var(--th); }
+      #sp-list li.on { background: var(--th); box-shadow: inset 0 0 0 1px var(--muted); }
       #sp-list i { display: inline-block; width: .7em; height: .7em; border-radius: 2px; margin-right: .45em; }
+      /* переключатель метрики Y */
+      #sp-mode { display: flex; gap: .3rem; }
+      #sp-mode button { flex: 1; font: inherit; font-size: .82em; padding: 4px 6px; cursor: pointer; background: var(--bg); color: var(--muted); border: 1px solid var(--border); border-radius: 6px; }
+      #sp-mode button.on { background: var(--th); color: var(--fg); border-color: var(--muted); }
       #speed-box { flex: 1 1 auto; min-width: 0; height: 440px; position: relative; }
       @media (max-width: 720px) { #speed-wrap { flex-direction: column; } #speed-side { flex: none; width: 100%; } #sp-list { max-height: 10rem; } }
       #theme-toggle {
