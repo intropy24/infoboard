@@ -700,6 +700,20 @@ SPEED_JS = """
   });
   var drag = null; // идёт выделение рамкой: {x0, x1} в пикселях канваса
   var draggedOnce = false; // после перетаскивания подавляем клик, иначе открылся бы коммит
+  var cursor = null; // курсор над полем графика: {x, y} — для перекрестия
+  var crosshair = { // две полупрозрачные пунктирные линии по курсору, как в графане
+    id: 'sp-crosshair',
+    afterDraw: function (ch) {
+      if (!cursor) return;
+      var c2 = ch.ctx, ar = ch.chartArea;
+      c2.save();
+      c2.strokeStyle = 'rgba(139,148,158,.55)';
+      c2.setLineDash([4, 4]);
+      c2.beginPath(); c2.moveTo(cursor.x + .5, ar.top); c2.lineTo(cursor.x + .5, ar.bottom); c2.stroke();
+      c2.beginPath(); c2.moveTo(ar.left, cursor.y + .5); c2.lineTo(ar.right, cursor.y + .5); c2.stroke();
+      c2.restore();
+    }
+  };
   var dragRect = { // полупрозрачная рамка выделения прямо на канвасе, по-графановски
     id: 'sp-drag-rect',
     afterDraw: function (ch) {
@@ -716,10 +730,11 @@ SPEED_JS = """
   var chart = new Chart(document.getElementById('speed-canvas'), {
     type: 'line',
     data: { datasets: ds },
-    plugins: [dragRect],
+    plugins: [dragRect, crosshair],
     options: {
       responsive: true, maintainAspectRatio: false, animation: false,
-      interaction: { mode: 'nearest', axis: 'xy', intersect: false },
+      // режим 'x': подсветка коммита — только когда вертикаль пересекла его (как перекрестие)
+      interaction: { mode: 'nearest', axis: 'x', intersect: false },
       // точка = коммит: клик открывает страницу коммита
       onClick: function (e, els, ch) {
         if (draggedOnce) { draggedOnce = false; return; }
@@ -778,10 +793,20 @@ SPEED_JS = """
   // диапазон можно ввести и руками, сброс — кнопкой ×
   var inpF = document.getElementById('sp-from'), inpT = document.getElementById('sp-to');
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
-  function toInput(ms) {
+  function toInput(ms) { // dd.mm.yyyy hh:mm — привычный формат; пусто = без границы
     if (ms == null) return '';
     var d = new Date(ms);
-    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    return pad2(d.getDate()) + '.' + pad2(d.getMonth() + 1) + '.' + d.getFullYear() + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+  function parseInput(v) { // тот же формат руками: null — пусто, NaN — мусор (подсветим красным)
+    v = (v || '').trim();
+    if (!v) return null;
+    var m = v.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})(?:[ ,]+(\d{1,2})(?::(\d{1,2}))?)?$/);
+    if (!m) return NaN;
+    var d = new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0));
+    // 31.06. -> Date молча перекатывает на июль — считаем это мусором
+    if (d.getFullYear() !== +m[3] || d.getMonth() !== +m[2] - 1 || d.getDate() !== +m[1]) return NaN;
+    return d.getTime();
   }
   function applyTime(from, to) { // мс или null — границы окна по X
     chart.options.scales.x.min = from == null ? undefined : from;
@@ -790,12 +815,15 @@ SPEED_JS = """
     chart.update('none');
   }
   function onInputTime() {
-    var f = inpF.value ? new Date(inpF.value).getTime() : null;
-    var t = inpT.value ? new Date(inpT.value).getTime() : null;
+    var f = parseInput(inpF.value), t = parseInput(inpT.value);
+    inpF.classList.toggle('bad', isNaN(f));
+    inpT.classList.toggle('bad', isNaN(t));
+    if (isNaN(f) || isNaN(t)) return;
     if (f != null && t != null && f >= t) return; // перевёрнутый диапазон — ждём доводки
     applyTime(f, t);
   }
   inpF.onchange = onInputTime; inpT.onchange = onInputTime;
+  inpF.onkeydown = inpT.onkeydown = function (e) { if (e.key === 'Enter') onInputTime(); };
   document.getElementById('sp-reset').onclick = function () { applyTime(null, null); };
   var canvas = chart.canvas;
   canvas.addEventListener('mousedown', function (e) {
@@ -805,11 +833,13 @@ SPEED_JS = """
     canvas.style.cursor = 'crosshair';
   });
   canvas.addEventListener('mousemove', function (e) {
-    if (!drag) return;
     var r = canvas.getBoundingClientRect(), ar = chart.chartArea;
-    drag.x1 = Math.max(ar.left, Math.min(ar.right, e.clientX - r.left));
+    var x = e.clientX - r.left, y = e.clientY - r.top;
+    cursor = x >= ar.left && x <= ar.right && y >= ar.top && y <= ar.bottom ? { x: x, y: y } : null;
+    if (drag) drag.x1 = Math.max(ar.left, Math.min(ar.right, x));
     chart.render();
   });
+  canvas.addEventListener('mouseleave', function () { if (cursor) { cursor = null; chart.render(); } });
   window.addEventListener('mouseup', function () {
     if (!drag) return;
     var a = Math.min(drag.x0, drag.x1), b = Math.max(drag.x0, drag.x1);
@@ -844,7 +874,7 @@ def _speed_chart(charts: list[dict]) -> None:
     print('<div id="speed-side">')
     print('<div id="speed-controls"><select id="sp-lab"></select>')
     print('<div id="sp-mode"><button data-mode="rate" class="on">стр/ч</button><button data-mode="lines">строк в коммите</button></div>')
-    print('<div id="sp-times"><label>с <input type="datetime-local" id="sp-from"></label><label>по <input type="datetime-local" id="sp-to"></label><button id="sp-reset" title="показать всё время">×</button></div>')
+    print('<div id="sp-times"><label>с <input id="sp-from" type="text" placeholder="дд.мм.гггг чч:мм" spellcheck="false" autocomplete="off"></label><label>по <input id="sp-to" type="text" placeholder="дд.мм.гггг чч:мм" spellcheck="false" autocomplete="off"></label><button id="sp-reset" title="показать всё время">×</button></div>')
     print('</div>')
     print('<ul id="sp-list">')
     for s in sorted({d["s"] for d in data}):
