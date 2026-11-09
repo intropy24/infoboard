@@ -840,6 +840,10 @@ SPEED_JS = """
     heat.width = W * dpr; heat.height = H * dpr; // под HiDPI, иначе мыло
     var c2 = heat.getContext('2d');
     c2.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // цвета берём из темы страницы — heatmap не должен выглядеть белой заплаткой в dark
+    var cs = getComputedStyle(document.documentElement);
+    var cMut = cs.getPropertyValue('--muted').trim() || '#57606a';
+    var cFg = cs.getPropertyValue('--fg').trim() || '#1f2328';
     var cells = heatCur = heatCells(), max = 1;
     Object.keys(cells).forEach(function (k) { max = Math.max(max, cells[k].n); });
     var cw = (W - HX - HR) / 24, ch = (H - HY - HB) / 7;
@@ -847,24 +851,24 @@ SPEED_JS = """
     c2.font = '11px system-ui, sans-serif'; c2.textBaseline = 'middle';
     for (var row = 0; row < 7; row++) {
       var day = (row + 1) % 7; // строки сверху вниз: пн..вс
-      c2.fillStyle = '#57606a'; c2.textAlign = 'right';
+      c2.fillStyle = cMut; c2.textAlign = 'right';
       c2.fillText(DAYS[row], HX - 6, HY + ch * (row + .5));
       for (var hh = 0; hh < 24; hh++) {
         var x = HX + hh * cw, y = HY + row * ch, cc = cells[day * 24 + hh];
         var n = cc ? cc.n : 0, a = n ? 0.12 + 0.88 * Math.sqrt(n / max) : 0; // sqrt — редкие часы не тонут
-        c2.fillStyle = n ? 'rgba(9,105,218,' + a.toFixed(3) + ')' : '#eaeef2';
+        c2.fillStyle = n ? 'rgba(56,139,253,' + a.toFixed(3) + ')' : 'rgba(139,148,158,.14)';
         c2.fillRect(x + 1, y + 1, cw - 2, ch - 2);
         if (n) {
-          c2.fillStyle = a > .55 ? '#fff' : '#1f2328'; c2.textAlign = 'center';
+          c2.fillStyle = a > .55 ? '#fff' : cFg; c2.textAlign = 'center';
           c2.fillText(String(n), x + cw / 2, y + ch / 2);
         }
       }
     }
-    c2.fillStyle = '#57606a'; c2.textAlign = 'center';
+    c2.fillStyle = cMut; c2.textAlign = 'center';
     for (var h2 = 0; h2 < 24; h2 += 2) c2.fillText(String(h2), HX + h2 * cw + cw / 2, H - HB + 8);
     if (heatHover) { // подсветка ячейки под курсором
       var hx = HX + heatHover.hour * cw, hy = HY + ((heatHover.day + 6) % 7) * ch;
-      c2.strokeStyle = '#0969da'; c2.lineWidth = 2;
+      c2.strokeStyle = '#4493f8'; c2.lineWidth = 2;
       c2.strokeRect(hx + 1.5, hy + 1.5, cw - 3, ch - 3);
     }
   }
@@ -884,6 +888,8 @@ SPEED_JS = """
     heatInfo.textContent = span + ' — ' + cc.n + ' комм.: ' + who.slice(0, 4).join(', ') + (who.length > 4 ? ' +' + (who.length - 4) : '');
   });
   heat.addEventListener('mouseleave', function () { heatHover = null; if (mode === 'heat') { drawHeat(); heatInfo.textContent = HINT; } });
+  // переключение темы (🌓 меняет data-theme на <html>) — перекрашиваем heatmap на лету
+  if (window.MutationObserver) new MutationObserver(function () { if (mode === 'heat') drawHeat(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   function setMode(m) { // переключение метрики Y / heat-map: все величины уже лежат в точках
     mode = m;
     var heatOn = m === 'heat';
