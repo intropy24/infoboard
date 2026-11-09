@@ -63,6 +63,7 @@ class QueueItem:
     draft: bool
     commits_all: int | None = None
     speed: tuple[int, int, int] | None = None
+    speed_points: list[list[int]] = field(default_factory=list)
     waiting_since: str = ""
     student_after: str = ""
     unresolved: int | None = None
@@ -233,17 +234,19 @@ def repo_url(org: str, student: str) -> str:
     return f"https://github.com/{org}/{org}-{student}"
 
 
-def lines_per_hour(points: list[tuple[datetime, int]]) -> tuple[int, int, int] | None:
+def lines_per_hour(points: list[tuple[datetime, int]]) -> tuple[tuple[int, int, int] | None, list[list[int]]]:
     pts = sorted(points)
-    rates = []
+    series = []
     for (t_prev, _), (t, a) in pairwise(pts):
         if (hours := (t - t_prev).total_seconds() / 3600) > 0:
-            rates.append((a, hours))
-    if not rates:
-        return None
-    total_hours = sum(h for _, h in rates)
-    avg = round(sum(a for a, _ in rates) / total_hours) if total_hours else 0
-    return avg, round(max(a / h for a, h in rates)), len(rates)
+            series.append((t, hours, a))
+    if not series:
+        return None, []
+    total_hours = sum(h for _, h, _ in series)
+    avg = round(sum(a for _, _, a in series) / total_hours) if total_hours else 0
+    stats = avg, round(max(a / h for _, h, a in series)), len(series)
+    pts_out = [[int(t.timestamp() * 1000), max(1, round(a / h))] for t, h, a in series]
+    return stats, pts_out
 
 
 def merge_events(events_cache: dict, owner: str, repo: str, pages: list[list]) -> list[dict]:
@@ -466,7 +469,7 @@ def collect_student(
                 stats.lines_del += d_
             pr_add = sum(a for a, _ in line_by_sha.values())
             pr_del = sum(d for _, d in line_by_sha.values())
-            speed = lines_per_hour([(a, line_by_sha[sha][0]) for a, _, sha, _ in student_commits])
+            speed, speed_points = lines_per_hour([(a, line_by_sha[sha][0]) for a, _, sha, _ in student_commits])
             review_mark, teacher_seen, teacher_commit, foreign_reviews = review_summary(reviews_by_pr[p.number], teacher)
             push_dates = sorted(d for d, _ in branch_pushes)
             if isinstance(teacher_seen, datetime):
@@ -500,6 +503,7 @@ def collect_student(
                         review_state=review_mark,
                         draft=bool(p.draft),
                         speed=speed,
+                        speed_points=speed_points,
                         waiting_since=teacher_seen.isoformat(),
                         student_after=comment.isoformat() if comment else "",
                         unresolved=threads_by_pr.get(p.number),
@@ -541,6 +545,7 @@ def collect_student(
                 review_state=review_mark,
                 draft=bool(p.draft),
                 speed=speed,
+                speed_points=speed_points,
                 waiting_since=waiting_start.isoformat(),
                 checks=checks_by_branch.get(name, "—"),
                 checks_url=f"https://github.com/{owner}/{repo}/commit/{sha}/checks",
@@ -638,6 +643,108 @@ def _md_checks(item: QueueItem) -> str:
     return f'<a class="ci" href="{item.checks_url}">{s}</a>' if item.checks_url and s != "—" else s
 
 
+SPEED_JS = """
+(function () {
+  var el = document.getElementById('speed-data');
+  if (!el || !window.Chart) return;
+  var DATA = JSON.parse(el.textContent);
+  function hueOf(name) { // стабильный цвет студента: хэш ника в тон палитры
+    var h = 0;
+    for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+    return h;
+  }
+  var fmtTick = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' });
+  var fmtTip = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  var ds = DATA.map(function (d) {
+    return { label: d.s + ' · ' + d.b, student: d.s, branch: d.b, hue: hueOf(d.s), data: d.p };
+  });
+  function paint(d, mode) { // normal|own|dim — прозрачность кривой для подсветки при наведении
+    var a = mode === 'own' ? 1 : mode === 'dim' ? 0.05 : 0.8;
+    var c = 'hsla(' + d.hue + ',72%,' + (mode === 'own' ? '62%' : '55%') + '%,';
+    d.borderColor = c + a + ')';
+    d.backgroundColor = d.pointBackgroundColor = c + Math.min(1, a + 0.15) + ')';
+    d.borderWidth = mode === 'own' ? 2.2 : 1.5;
+  }
+  function reset() { ds.forEach(function (d) { paint(d, d.hidden ? 'dim' : 'normal'); }); }
+  var chart = new Chart(document.getElementById('speed-canvas'), {
+    type: 'line',
+    data: { datasets: ds },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'nearest', axis: 'xy', intersect: false },
+      scales: {
+        x: { type: 'linear',
+             ticks: { maxRotation: 0, autoSkip: true, callback: function (v) { return fmtTick.format(new Date(v)); } },
+             grid: { color: 'rgba(128,128,128,.15)' } },
+        y: { type: 'logarithmic', title: { display: true, text: 'стр/ч (лог-шкала)' },
+             ticks: { callback: function (v) { // подписываем только 1,2,5 · 10^n, остальные деления прячем
+                 var r = Math.round(Math.log10(v)), q = v / Math.pow(10, r);
+                 if (Math.abs(q - 1) < 1e-9 || Math.abs(q - 2) < 1e-9 || Math.abs(q - 5) < 1e-9) return String(Math.round(v));
+                 return null; } },
+             grid: { color: 'rgba(128,128,128,.15)' } }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: {
+          title: function (items) { return items.length ? fmtTip.format(new Date(items[0].parsed.x)) : ''; },
+          label: function (ctx) { return ctx.dataset.label + ': ' + ctx.parsed.y + ' стр/ч'; } } }
+      }
+    }
+  });
+  reset();
+  chart.update('none');
+  var selS = document.getElementById('sp-student'), selL = document.getElementById('sp-lab');
+  var students = [], labs = [];
+  DATA.forEach(function (d) { if (students.indexOf(d.s) < 0) students.push(d.s); if (labs.indexOf(d.b) < 0) labs.push(d.b); });
+  students.sort(); labs.sort();
+  function apply() {
+    ds.forEach(function (d) {
+      d.hidden = !((!selS.value || d.student === selS.value) && (!selL.value || d.branch === selL.value));
+    });
+    reset(); chart.update('none');
+  }
+  function fill(sel, vals, all) {
+    var o = document.createElement('option'); o.value = ''; o.textContent = all; sel.appendChild(o);
+    vals.forEach(function (v) { var e = document.createElement('option'); e.value = v; e.textContent = v; sel.appendChild(e); });
+    sel.onchange = apply;
+  }
+  fill(selS, students, 'все студенты');
+  fill(selL, labs, 'все лабы');
+  Array.prototype.forEach.call(document.getElementById('sp-list').children, function (li) {
+    var s = li.getAttribute('data-student');
+    li.querySelector('i').style.background = 'hsl(' + hueOf(s) + ',72%,55%)';
+    li.onmouseenter = function () { ds.forEach(function (d) { paint(d, d.student === s ? 'own' : 'dim'); }); chart.update('none'); };
+    li.onmouseleave = function () { reset(); chart.update('none'); };
+  });
+})();
+"""
+
+
+def _speed_chart(queue: list[QueueItem]) -> None:
+    data = [{"s": it.student, "b": it.branch, "p": it.speed_points} for it in queue if it.speed_points]
+    if not data:
+        return
+    print("## ⚡ График скорости — стр/ч")
+    print()
+    print('<div id="speed-wrap">')
+    print('<div id="speed-side">')
+    print('<div id="speed-controls"><select id="sp-student"></select><select id="sp-lab"></select></div>')
+    print('<ul id="sp-list">')
+    for s in sorted({d["s"] for d in data}):
+        print(f'<li data-student="{s}"><i></i>{s}</li>')
+    print('</ul>')
+    print('</div>')
+    print('<div id="speed-box"><canvas id="speed-canvas"></canvas></div>')
+    print('</div>')
+    print()
+    print('<script type="application/json" id="speed-data">' + json.dumps(data, ensure_ascii=False) + '</script>')
+    print()
+    print('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>')
+    print()
+    print('<script>' + SPEED_JS + '</script>')
+    print()
+
+
 def report_md(
     queue: list[QueueItem], reviewed: list[QueueItem], no_pr: list[QueueItem], stats: list[StudentStats], org: str, failed: int
 ) -> None:
@@ -664,6 +771,7 @@ def report_md(
                 f"{item.age} | {fmt_dt(item.waiting_since) or '—'} | {speed} |"
             )
     print()
+    _speed_chart(queue)
 
     if reviewed:
         silent = sorted((it for it in reviewed if not it.student_after), key=lambda it: it.waiting_since)
