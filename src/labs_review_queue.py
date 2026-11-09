@@ -1,3 +1,4 @@
+
 import argparse
 import json
 import re
@@ -12,7 +13,11 @@ from pathlib import Path
 from githubkit import GitHub
 from githubkit.exception import RateLimitExceeded, RequestFailed, RequestTimeout
 from pydantic import Field
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    gh_pat: str = Field(..., alias="GH_PAT")
 
 LAB_BRANCH_RE = re.compile(r"^lab-[0-9]{2}([-.].*)?$")
 
@@ -27,12 +32,6 @@ REVIEW_MARKS = {
 }
 
 
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
-
-    gh_pat: str = Field(..., alias="GH_PAT")
-
-
 class QueueSettings(Settings):
     gh_org: str = Field("intropy24", alias="GH_ORG")
 
@@ -45,8 +44,6 @@ def iter_org_repos(gh: GitHub, org: str):
         if len(repos) < 100:
             break
         page += 1
-
-
 @dataclass
 class QueueItem:
     student: str
@@ -63,7 +60,6 @@ class QueueItem:
     draft: bool
     commits_all: int | None = None
     speed: tuple[int, int, int] | None = None
-    speed_points: list[list[int]] = field(default_factory=list)
     waiting_since: str = ""
     student_after: str = ""
     unresolved: int | None = None
@@ -107,6 +103,8 @@ def checks_status(runs) -> str:
     if any(r.status != "completed" for r in live):
         return "⏳ идёт"
     return "✅"
+
+
 def checks_rank(item: QueueItem) -> int:
     c = item.checks
     if c.startswith("✅"):
@@ -234,19 +232,17 @@ def repo_url(org: str, student: str) -> str:
     return f"https://github.com/{org}/{org}-{student}"
 
 
-def lines_per_hour(points: list[tuple[datetime, int]]) -> tuple[tuple[int, int, int] | None, list[list[int]]]:
+def lines_per_hour(points: list[tuple[datetime, int]]) -> tuple[int, int, int] | None:
     pts = sorted(points)
-    series = []
+    rates = []
     for (t_prev, _), (t, a) in pairwise(pts):
         if (hours := (t - t_prev).total_seconds() / 3600) > 0:
-            series.append((t, hours, a))
-    if not series:
-        return None, []
-    total_hours = sum(h for _, h, _ in series)
-    avg = round(sum(a for _, _, a in series) / total_hours) if total_hours else 0
-    stats = avg, round(max(a / h for _, h, a in series)), len(series)
-    pts_out = [[int(t.timestamp() * 1000), max(1, round(a / h))] for t, h, a in series]
-    return stats, pts_out
+            rates.append((a, hours))
+    if not rates:
+        return None
+    total_hours = sum(h for _, h in rates)
+    avg = round(sum(a for a, _ in rates) / total_hours) if total_hours else 0
+    return avg, round(max(a / h for a, h in rates)), len(rates)
 
 
 def merge_events(events_cache: dict, owner: str, repo: str, pages: list[list]) -> list[dict]:
@@ -282,11 +278,19 @@ def merge_events(events_cache: dict, owner: str, repo: str, pages: list[list]) -
 def collect_student(
     gh: GitHub, owner: str, repo: str, prefix: str, now: datetime, events_cache: dict,
     teacher: str, stat_cache: dict, pool: ThreadPoolExecutor,
-) -> tuple[list[QueueItem], list[QueueItem], list[QueueItem], StudentStats]:
+) -> tuple[list[QueueItem], list[QueueItem], list[QueueItem], StudentStats, list[dict]]:
     student = repo.removeprefix(f"{prefix}-")
     stats = StudentStats(student=student)
     student_shas: set[str] = set()
     stat_shas: set[str] = set()
+    lab_chart: dict[str, dict[str, list]] = {}
+
+    def add_points(branch: str, entries: list[tuple[object, str, int]]) -> None:
+        pts = lab_chart.setdefault(branch, {})
+        for d, c_sha, a_ in entries:
+            if not isinstance(d, datetime) or a_ <= 0 or c_sha in pts:
+                continue
+            pts[c_sha] = [int(d.timestamp() * 1000), a_, f"https://github.com/{owner}/{repo}/commit/{c_sha}", c_sha[:7]]
 
     def get_branches() -> list[tuple[str, str]]:
         return list(iter_branches(gh, owner, repo))
@@ -437,6 +441,11 @@ def collect_student(
                         a_, d_ = commit_line_stats(gh, owner, repo, c.sha, stat_cache)
                         stats.lines_add += a_
                         stats.lines_del += d_
+                    add_points(name, [
+                        (c.commit.author.date if c.commit.author is not None else None, c.sha, commit_line_stats(gh, owner, repo, c.sha, stat_cache)[0])
+                        for c in commits_by_pr[p.number]
+                        if not commit_is_teacher(c, teacher)
+                    ])
                 else:
                     stats.declined += 1
                 continue
@@ -469,7 +478,8 @@ def collect_student(
                 stats.lines_del += d_
             pr_add = sum(a for a, _ in line_by_sha.values())
             pr_del = sum(d for _, d in line_by_sha.values())
-            speed, speed_points = lines_per_hour([(a, line_by_sha[sha][0]) for a, _, sha, _ in student_commits])
+            speed = lines_per_hour([(a, line_by_sha[sha][0]) for a, _, sha, _ in student_commits])
+            add_points(name, [(a, c_sha, line_by_sha[c_sha][0]) for a, _, c_sha, _ in student_commits])
             review_mark, teacher_seen, teacher_commit, foreign_reviews = review_summary(reviews_by_pr[p.number], teacher)
             push_dates = sorted(d for d, _ in branch_pushes)
             if isinstance(teacher_seen, datetime):
@@ -503,7 +513,6 @@ def collect_student(
                         review_state=review_mark,
                         draft=bool(p.draft),
                         speed=speed,
-                        speed_points=speed_points,
                         waiting_since=teacher_seen.isoformat(),
                         student_after=comment.isoformat() if comment else "",
                         unresolved=threads_by_pr.get(p.number),
@@ -545,13 +554,13 @@ def collect_student(
                 review_state=review_mark,
                 draft=bool(p.draft),
                 speed=speed,
-                speed_points=speed_points,
                 waiting_since=waiting_start.isoformat(),
                 checks=checks_by_branch.get(name, "—"),
                 checks_url=f"https://github.com/{owner}/{repo}/commit/{sha}/checks",
             ))
+    charts = [{"s": student, "b": name, "p": sorted(pts.values())} for name, pts in lab_chart.items() if pts]
     stats.pushes = student_push_count(repo_events, student, student_shas)
-    return queue, reviewed, no_pr, stats
+    return queue, reviewed, no_pr, stats, charts
 
 
 def _pad(s: str, width: int) -> str:
@@ -655,28 +664,43 @@ SPEED_JS = """
   }
   var fmtTick = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' });
   var fmtTip = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-  var ds = DATA.map(function (d) {
-    return { label: d.s + ' · ' + d.b, student: d.s, branch: d.b, hue: hueOf(d.s), data: d.p };
-  });
-  function paint(d, mode) { // normal|own|dim — прозрачность кривой для подсветки при наведении
-    var a = mode === 'own' ? 1 : mode === 'dim' ? 0.05 : 0.8;
-    var c = 'hsla(' + d.hue + ',72%,' + (mode === 'own' ? '62%' : '55%') + '%,';
-    d.borderColor = c + a + ')';
-    d.backgroundColor = d.pointBackgroundColor = c + Math.min(1, a + 0.15) + ')';
-    d.borderWidth = mode === 'own' ? 2.2 : 1.5;
+  var state = { focus: null }; // студент, на чьём имени сейчас курсор списка
+  function alpha(d) { // при наведении: кривые студента почти сплошные, остальные едва видны
+    if (state.focus) return d.student === state.focus ? 0.95 : 0.04;
+    return 0.85;
   }
-  function reset() { ds.forEach(function (d) { paint(d, d.hidden ? 'dim' : 'normal'); }); }
+  function col(ctx) { // scriptable-цвет: пересчитывается при каждой отрисовке, поэтому
+    var d = ctx.dataset; // и линии, и точки всегда ровно в цвете студента (в тёмной теме тоже)
+    var l = state.focus && d.student === state.focus ? 62 : 55;
+    return 'hsla(' + d.hue + ',72%,' + l + '%,' + alpha(d) + ')';
+  }
+  var ds = DATA.map(function (d) {
+    return {
+      label: d.s + ' · ' + d.b, student: d.s, branch: d.b, hue: hueOf(d.s),
+      data: d.p.map(function (pt) { return { x: pt[0], y: pt[1], u: pt[2], h: pt[3] }; }),
+      borderColor: col, backgroundColor: col, pointBackgroundColor: col,
+      pointBorderColor: 'transparent', pointBorderWidth: 0,
+      pointRadius: 2.5, pointHoverRadius: 4.5, borderWidth: 1.4, tension: 0
+    };
+  });
   var chart = new Chart(document.getElementById('speed-canvas'), {
     type: 'line',
     data: { datasets: ds },
     options: {
       responsive: true, maintainAspectRatio: false, animation: false,
       interaction: { mode: 'nearest', axis: 'xy', intersect: false },
+      // точка = коммит: клик открывает страницу коммита
+      onClick: function (e, els, ch) {
+        if (!els.length) return;
+        var raw = ch.data.datasets[els[0].datasetIndex].data[els[0].index];
+        if (raw && raw.u) window.open(raw.u, '_blank');
+      },
+      onHover: function (e, els) { if (e.native && e.native.target) e.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
       scales: {
         x: { type: 'linear',
              ticks: { maxRotation: 0, autoSkip: true, callback: function (v) { return fmtTick.format(new Date(v)); } },
              grid: { color: 'rgba(128,128,128,.15)' } },
-        y: { type: 'logarithmic', title: { display: true, text: 'стр/ч (лог-шкала)' },
+        y: { type: 'logarithmic', title: { display: true, text: 'строк в коммите (лог-шкала)' },
              ticks: { callback: function (v) { // подписываем только 1,2,5 · 10^n, остальные деления прячем
                  var r = Math.round(Math.log10(v)), q = v / Math.pow(10, r);
                  if (Math.abs(q - 1) < 1e-9 || Math.abs(q - 2) < 1e-9 || Math.abs(q - 5) < 1e-9) return String(Math.round(v));
@@ -687,12 +711,11 @@ SPEED_JS = """
         legend: { display: false },
         tooltip: { callbacks: {
           title: function (items) { return items.length ? fmtTip.format(new Date(items[0].parsed.x)) : ''; },
-          label: function (ctx) { return ctx.dataset.label + ': ' + ctx.parsed.y + ' стр/ч'; } } }
+          label: function (ctx) { return ctx.dataset.label + ': +' + ctx.parsed.y + ' строк'; },
+          afterLabel: function (ctx) { return ctx.raw.h ? ctx.raw.h + ' — клик: открыть коммит' : ''; } } }
       }
     }
   });
-  reset();
-  chart.update('none');
   var selS = document.getElementById('sp-student'), selL = document.getElementById('sp-lab');
   var students = [], labs = [];
   DATA.forEach(function (d) { if (students.indexOf(d.s) < 0) students.push(d.s); if (labs.indexOf(d.b) < 0) labs.push(d.b); });
@@ -701,7 +724,7 @@ SPEED_JS = """
     ds.forEach(function (d) {
       d.hidden = !((!selS.value || d.student === selS.value) && (!selL.value || d.branch === selL.value));
     });
-    reset(); chart.update('none');
+    chart.update('none');
   }
   function fill(sel, vals, all) {
     var o = document.createElement('option'); o.value = ''; o.textContent = all; sel.appendChild(o);
@@ -713,18 +736,18 @@ SPEED_JS = """
   Array.prototype.forEach.call(document.getElementById('sp-list').children, function (li) {
     var s = li.getAttribute('data-student');
     li.querySelector('i').style.background = 'hsl(' + hueOf(s) + ',72%,55%)';
-    li.onmouseenter = function () { ds.forEach(function (d) { paint(d, d.student === s ? 'own' : 'dim'); }); chart.update('none'); };
-    li.onmouseleave = function () { reset(); chart.update('none'); };
+    li.onmouseenter = function () { state.focus = s; chart.update('none'); };
+    li.onmouseleave = function () { state.focus = null; chart.update('none'); };
   });
 })();
 """
 
 
-def _speed_chart(queue: list[QueueItem]) -> None:
-    data = [{"s": it.student, "b": it.branch, "p": it.speed_points} for it in queue if it.speed_points]
+def _speed_chart(charts: list[dict]) -> None:
+    data = [c for c in charts if c["p"]]
     if not data:
         return
-    print("## ⚡ График скорости — стр/ч")
+    print("## ⚡ Коммиты — строк в коммите (все живые PR'ы)")
     print()
     print('<div id="speed-wrap">')
     print('<div id="speed-side">')
@@ -746,7 +769,8 @@ def _speed_chart(queue: list[QueueItem]) -> None:
 
 
 def report_md(
-    queue: list[QueueItem], reviewed: list[QueueItem], no_pr: list[QueueItem], stats: list[StudentStats], org: str, failed: int
+    queue: list[QueueItem], reviewed: list[QueueItem], no_pr: list[QueueItem], stats: list[StudentStats], org: str, failed: int,
+    charts: list[dict],
 ) -> None:
     queue.sort(key=lambda item: (checks_rank(item), item.waiting_since or item.updated_at))
     print(f"# {org}")
@@ -771,7 +795,7 @@ def report_md(
                 f"{item.age} | {fmt_dt(item.waiting_since) or '—'} | {speed} |"
             )
     print()
-    _speed_chart(queue)
+    _speed_chart(charts)
 
     if reviewed:
         silent = sorted((it for it in reviewed if not it.student_after), key=lambda it: it.waiting_since)
@@ -836,7 +860,7 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=0, help="сколько репозиториев обрабатывать параллельно (0 = все сразу)")
     args = parser.parse_args()
 
-    settings = QueueSettings()  # type: ignore
+    settings = QueueSettings()
     gh = GitHub(settings.gh_pat)
     teacher = gh.rest.users.get_authenticated().parsed_data.login
     now = datetime.now(UTC)
@@ -852,6 +876,7 @@ def main() -> None:
     reviewed: list[QueueItem] = []
     no_pr: list[QueueItem] = []
     stats: list[StudentStats] = []
+    charts: list[dict] = []
     failed = 0
 
     workers = args.workers or len(students)
@@ -865,7 +890,7 @@ def main() -> None:
         for fut in as_completed(futures):
             repo = futures[fut]
             try:
-                q, r, n, st = fut.result()
+                q, r, n, st, ch = fut.result()
             except RateLimitExceeded as e:
                 failed += 1
                 print(f"x {repo:<30} GitHub limit, сброс через {e.retry_after}", file=log)
@@ -878,10 +903,14 @@ def main() -> None:
             reviewed.extend(r)
             no_pr.extend(n)
             stats.append(st)
+            charts.extend(ch)
 
     EVENTS_CACHE_PATH.write_text(json.dumps(cache, ensure_ascii=False))
     STATS_CACHE_PATH.write_text(json.dumps(stat_cache, ensure_ascii=False))
-    (report_md if args.md else report)(queue, reviewed, no_pr, stats, settings.gh_org, failed)
+    if args.md:
+        report_md(queue, reviewed, no_pr, stats, settings.gh_org, failed, charts)
+    else:
+        report(queue, reviewed, no_pr, stats, settings.gh_org, failed)
 
     if args.json:
         payload = {
@@ -890,6 +919,7 @@ def main() -> None:
             "reviewed": [asdict(item) for item in sorted(reviewed, key=lambda it: it.waiting_since)],
             "no_pr": [asdict(item) for item in sorted(no_pr, key=lambda it: it.waiting_since or it.updated_at)],
             "students": [asdict(st) for st in stats],
+            "labs": charts,
         }
         with open(args.json, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2, default=str)
