@@ -1,2 +1,6 @@
 .env
 __pycache__/
+# артефакты прогона jplag.yml: jar, скачанные ветки, отчёты — в git не должны
+src/tools/
+src/jplag-src/
+src/jplag-reports/

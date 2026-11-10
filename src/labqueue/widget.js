@@ -135,7 +135,7 @@
     });
     chart.update('none');
     glide();
-    if (mode === 'heat') drawHeat(); else if (mode === 'matrix') drawMatrix(); // фильтры действуют и на оверлеи
+    if (mode === 'heat') drawHeat(); else if (mode === 'matrix') drawMatrix(); else if (mode === 'jb-hist') drawJbHist(); else if (mode === 'jb-graph') drawJbGraph(); // фильтры действуют и на оверлеи
   }
   (function () {
     var o = document.createElement('option'); o.value = ''; o.textContent = 'все лабы'; selL.appendChild(o);
@@ -143,6 +143,16 @@
     selL.onchange = apply;
   })();
   var btns = document.querySelectorAll('#sp-mode button');
+  // ⚖️ JPlag: данные рядом с speed-data (если summary закоммичен) — два дополнительных
+  // режима виджета; нет данных — снимаем и кнопки, чтобы виджет не врал
+  var JB = null;
+  try {
+    var _jbEl = document.getElementById('jplag-data');
+    if (_jbEl) JB = JSON.parse(_jbEl.textContent);
+  } catch (e) { JB = null; }
+  if (!JB) Array.prototype.forEach.call(document.querySelectorAll('#sp-mode button[data-mode^="jb-"]'), function (b) { b.parentNode.removeChild(b); });
+  btns = document.querySelectorAll('#sp-mode button');
+  var jbCv = document.getElementById('speed-jb'), jbGc = document.getElementById('speed-jbg'), jbInfo = document.getElementById('sp-jb-info');
   // heat-map «день недели × час»: третья мода вместо кривых рисует сетку 7×24
   // с итоговой строкой снизу (по часам) и колонкой справа (по дням), где цвет
   // ячейки — число коммитов; агрегирует те же серии, что оставили фильтры, в окне «с/по»
@@ -413,15 +423,20 @@
   });
   function setMode(m) { // переключение метрики Y / оверлеев: все величины уже лежат в точках
     mode = m;
-    var heatOn = m === 'heat', mxOn = m === 'matrix';
-    chart.canvas.style.display = heatOn || mxOn ? 'none' : '';
+    var heatOn = m === 'heat', mxOn = m === 'matrix', jbOn = m === 'jb-hist' || m === 'jb-graph';
+    chart.canvas.style.display = heatOn || mxOn || jbOn ? 'none' : '';
     heat.style.display = heatOn ? 'block' : 'none';
     heatInfo.style.display = heatOn ? 'block' : 'none';
     mxCv.style.display = mxOn ? 'block' : 'none';
     mxInfo.style.display = mxOn ? 'block' : 'none';
+    if (jbCv) jbCv.style.display = m === 'jb-hist' ? 'block' : 'none';
+    if (jbGc) jbGc.style.display = m === 'jb-graph' ? 'block' : 'none';
+    if (jbInfo) jbInfo.style.display = jbOn ? 'block' : 'none';
     Array.prototype.forEach.call(btns, function (b) { b.classList.toggle('on', b.getAttribute('data-mode') === m); });
     if (heatOn) { drawHeat(); return; }
     if (mxOn) { drawMatrix(); return; }
+    if (m === 'jb-hist') { drawJbHist(); return; }
+    if (m === 'jb-graph') { drawJbGraph(); return; }
     ds.forEach(function (d) { d.data.forEach(function (p) { p.y = m === 'rate' ? (p.r === null ? 1 : p.r) : p.l; }); });
     chart.options.scales.y.title.text = m === 'rate' ? 'скорость коммита, стр/ч (лог)' : 'строк в коммите (лог)';
     chart.update('none');
@@ -520,4 +535,180 @@
       apply();
     };
   });
+  // ⚖️ JPlag: два режима виджета по данным jplag-data (summary, который выкладывает
+  // jplag.yml). Лава выбирается общим селектором #sp-lab. Гистограмма — Chart.js
+  // (полосы это объекты: свой hover/tooltip), граф — свой canvas: узлы по окружности,
+  // физики и drag нет, хит-тесты арифметикой как у heatmap/матрицы
+  var jbChart = null; // ленивая: Chart.js измеряет контейнер при создании, а hidden-контейнер нулевой
+  var jbFocus = null; // студент, закреплённый кликом по узлу — остальные рёбра и узлы тускнеют
+  var jbHov = null; // {node:i} | {edge:i} — что сейчас под курсором графа
+  var jbGeom = null; // последний кадр {W,H,nodes,edges,ps} — для хит-тестов
+  var JB_TOP_EDGES = 18; // рёбер в графе: топ по AVG; все пары — это одуванчик вместо смысла
+  function jbPlural(n) { // пар/пара/пары
+    if (n % 10 === 1 && n % 100 !== 11) return 'пара';
+    if (n % 10 >= 2 && n % 10 <= 4 && !(n % 100 >= 12 && n % 100 <= 14)) return 'пары';
+    return 'пар';
+  }
+  function jbPairs() { // пары выбранной лабы (пусто = все лабы), сортированные по AVG
+    var ps = [];
+    if (!JB) return ps;
+    JB.labs.forEach(function (L) {
+      if (!selL.value || L.lab === selL.value) L.pairs.forEach(function (p) { ps.push({ a: p.a, b: p.b, avg: p.avg, max: p.max, lab: L.lab }); });
+    });
+    ps.sort(function (x, y) { return y.avg - x.avg; });
+    return ps;
+  }
+  function drawJbHist() { // распределение AVG пар по бакетам ×10%, старший сверху — как Distribution в viewer JPlag
+    if (!JB) return;
+    var ps = jbPairs(), hist = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      ps.forEach(function (p) { hist[Math.min(9, Math.floor(p.avg / 10))]++; });
+      hist.reverse(); // категория 0 у горизонтального Chart.js рисуется сверху
+      var cs = getComputedStyle(document.documentElement);
+      var cMut = cs.getPropertyValue('--muted').trim() || '#57606a';
+      if (!jbChart) {
+        jbChart = new Chart(jbCv, {
+          type: 'bar',
+          data: { labels: [], datasets: [{ data: [], backgroundColor: '#f85149', hoverBackgroundColor: '#ff7b72', borderWidth: 0, barPercentage: 0.8 }] },
+          options: {
+            indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: { duration: 120 },
+            onClick: function () {}, // клик по столбцу ничего не фильтрует: таблица пар — в markdown над виджетом
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (ctx) { var v = ctx.parsed.x; return v + ' ' + jbPlural(v); } } } },
+            scales: {
+              x: { ticks: { precision: 0, color: cMut }, grid: { color: cs.getPropertyValue('--border').trim() || '#d0d7de' }, title: { display: true, text: 'пар в бакете', color: cMut } },
+              y: { ticks: { color: cMut }, grid: { display: false } }
+            }
+          }
+        });
+      }
+      jbChart.data.labels = ['90–100%', '80–90%', '70–80%', '60–70%', '50–60%', '40–50%', '30–40%', '20–30%', '10–20%', '0–10%'];
+      jbChart.data.datasets[0].data = hist;
+      jbChart.update('none');
+      var labNow = selL.value || 'все лабы';
+      var has = !selL.value || JB.labs.some(function (L) { return L.lab === selL.value; });
+      jbInfo.textContent = !has ? labNow + ' — нет JPlag-данных'
+        : labNow + ' · пар ' + ps.length + (JB.checked ? ' · проверка от ' + JB.checked + ' МСК' : '') + ' · полоса — число пар в бакете среднего сходства (AVG)';
+    }
+  var JBGHINT = 'узел — студент, ребро — похожесть пары (топ-' + JB_TOP_EDGES + ' по AVG); наведение — детали, клик по узлу — закрепить';
+  function jbLayout() { // узлы по окружности (порядок по алфавиту — кадр детерминированный), рёбра — топ по AVG
+    var ps = jbPairs(), seen = {}, order = [];
+    ps.forEach(function (p) {
+      if (!(p.a in seen)) { seen[p.a] = 1; order.push(p.a); }
+      if (!(p.b in seen)) { seen[p.b] = 1; order.push(p.b); }
+    });
+    order.sort();
+    var box = jbGc.parentElement, W = box.clientWidth, H = box.clientHeight;
+    if (!W || !H) { jbGeom = null; return; }
+    var R = Math.max(60, Math.min(W / 2 - 140, H / 2 - 52, 250)), cx = W / 2, cy = H / 2 + 6;
+    var nodes = order.map(function (s, i) {
+      var ang = -Math.PI / 2 + (i * 2 * Math.PI) / Math.max(1, order.length);
+      return { s: s, x: cx + R * Math.cos(ang), y: cy + R * Math.sin(ang), ang: ang };
+    });
+    var idx = {};
+    order.forEach(function (s, i) { idx[s] = i; });
+    var edges = ps.slice(0, JB_TOP_EDGES).map(function (p) { return { a: idx[p.a], b: idx[p.b], avg: p.avg, max: p.max, lab: p.lab }; });
+    jbGeom = { W: W, H: H, nodes: nodes, edges: edges, ps: ps };
+  }
+  function jbPaint() {
+    if (!jbGeom) return;
+    var W = jbGeom.W, H = jbGeom.H;
+    var dpr = window.devicePixelRatio || 1;
+    if (jbGc.width !== W * dpr || jbGc.height !== H * dpr) { jbGc.width = W * dpr; jbGc.height = H * dpr; }
+    var c2 = jbGc.getContext('2d');
+    c2.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c2.clearRect(0, 0, W, H);
+    var cs = getComputedStyle(document.documentElement);
+    var cMut = cs.getPropertyValue('--muted').trim() || '#57606a';
+    var cFg = cs.getPropertyValue('--fg').trim() || '#1f2328';
+    var nodes = jbGeom.nodes, edges = jbGeom.edges, top = edges.length ? edges[0].avg || 1 : 1;
+    var nbr = null; // при закреплённом студенте ярки только он и соседи по рёбрам
+    if (jbFocus) {
+      nbr = {};
+      nbr[jbFocus] = 1;
+      edges.forEach(function (ed) {
+        if (nodes[ed.a].s === jbFocus) nbr[nodes[ed.b].s] = 1;
+        if (nodes[ed.b].s === jbFocus) nbr[nodes[ed.a].s] = 1;
+      });
+    }
+    var i;
+    for (i = 0; i < edges.length; i++) {
+      var e = edges[i];
+      var rel = !jbFocus || nodes[e.a].s === jbFocus || nodes[e.b].s === jbFocus;
+      var hovE = jbHov && jbHov.edge === i;
+      c2.globalAlpha = rel ? Math.min(1, 0.25 + 0.7 * (e.avg / top)) : 0.05;
+      c2.strokeStyle = hovE ? '#4493f8' : '#f85149';
+      c2.lineWidth = (hovE ? 1.5 : 0) + 0.8 + 2.6 * (e.avg / top);
+      c2.beginPath();
+      c2.moveTo(nodes[e.a].x, nodes[e.a].y);
+      c2.lineTo(nodes[e.b].x, nodes[e.b].y);
+      c2.stroke();
+    }
+    c2.font = '11px system-ui, sans-serif';
+    c2.textBaseline = 'middle';
+    for (i = 0; i < nodes.length; i++) {
+      var n = nodes[i], hi = (jbHov && jbHov.node === i) || n.s === jbFocus;
+      c2.globalAlpha = nbr && !nbr[n.s] ? 0.25 : 1;
+      c2.beginPath();
+      c2.arc(n.x, n.y, 6, 0, 2 * Math.PI);
+      c2.fillStyle = 'hsl(' + hueOf(n.s) + ',72%,55%)';
+      c2.fill();
+      if (hi) { c2.strokeStyle = '#4493f8'; c2.lineWidth = 2; c2.stroke(); }
+      var nm = n.s;
+      while (nm.length > 2 && c2.measureText(nm + '…').width > 110) nm = nm.slice(0, -1);
+      c2.fillStyle = hi ? cFg : cMut;
+      var cos = Math.cos(n.ang);
+      c2.textAlign = cos > 0.3 ? 'left' : cos < -0.3 ? 'right' : 'center';
+      c2.fillText(nm, n.x + 11 * cos, n.y + 13 * Math.sin(n.ang));
+    }
+    c2.globalAlpha = 1;
+  }
+  function drawJbGraph() { jbLayout(); jbPaint(); jbInfo.textContent = JBGHINT; }
+  function jbDist(px, py, x1, y1, x2, y2) { // расстояние от точки до отрезка — хит-тест рёбер
+    var dx = x2 - x1, dy = y2 - y1, L = dx * dx + dy * dy;
+    var t = L ? ((px - x1) * dx + (py - y1) * dy) / L : 0;
+    t = Math.max(0, Math.min(1, t));
+    var qx = x1 + t * dx - px, qy = y1 + t * dy - py;
+    return Math.sqrt(qx * qx + qy * qy);
+  }
+  function jbHit(x, y) { // сначала узлы (попадание — круг), потом рёбра (±5px)
+    if (!jbGeom) return null;
+    var n = jbGeom.nodes, i;
+    for (i = 0; i < n.length; i++) {
+      var dx = x - n[i].x, dy = y - n[i].y;
+      if (dx * dx + dy * dy <= 100) return { node: i };
+    }
+    for (i = 0; i < jbGeom.edges.length; i++) {
+      var e = jbGeom.edges[i];
+      if (jbDist(x, y, n[e.a].x, n[e.a].y, n[e.b].x, n[e.b].y) <= 5) return { edge: i };
+    }
+    return null;
+  }
+  function jbInfoText(hit) {
+    if (!hit || !jbGeom) return JBGHINT;
+    var n = jbGeom.nodes;
+    if (hit.node != null) { // ps отсортирован по AVG — первая пара с этим студентом и есть максимальная
+      var s = n[hit.node].s, cnt = 0, best = null;
+      jbGeom.ps.forEach(function (p) { if (p.a === s || p.b === s) { cnt++; if (!best) best = p; } });
+      return s + ' — пар ' + cnt + (best ? ', максимум ' + best.avg + '% (с ' + (best.a === s ? best.b : best.a) + ', ' + best.lab + ')' : '');
+    }
+    var e = jbGeom.edges[hit.edge];
+    return n[e.a].s + ' ↔ ' + n[e.b].s + ' · AVG ' + e.avg + '% · MAX ' + e.max + '% · ' + e.lab;
+  }
+  if (jbGc) { // канвасов может не быть (summary не закоммичен) — слушатели вешаем только когда есть
+    jbGc.addEventListener('mousemove', function (ev) {
+      var rct = jbGc.getBoundingClientRect();
+      var hit = jbHit(ev.clientX - rct.left, ev.clientY - rct.top);
+      var same = !!(hit && jbHov && (hit.node != null ? jbHov.node === hit.node : jbHov.edge === hit.edge));
+      if (!same) { jbHov = hit; jbPaint(); }
+      jbGc.style.cursor = hit ? 'pointer' : 'default';
+      jbInfo.textContent = jbInfoText(hit);
+    });
+    jbGc.addEventListener('mouseleave', function () { jbHov = null; jbPaint(); jbInfo.textContent = JBGHINT; });
+    jbGc.addEventListener('click', function () { // узел — закрепить/отпустить, фон — снять закрепление
+      if (jbHov && jbHov.node != null) {
+        var s = jbGeom.nodes[jbHov.node].s;
+        jbFocus = jbFocus === s ? null : s;
+      } else jbFocus = null;
+      jbPaint();
+    });
+  }
 })();

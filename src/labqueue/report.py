@@ -198,5 +198,5 @@ def report_md(
         + (f" · **репо с ошибками {failed}**" if failed else "")
     )
     print()
-    speed_chart(charts)
     jplag_section()
+    speed_chart(charts)

@@ -1,6 +1,9 @@
 # зафиксировано под локальный venv (python 3.11+)
 githubkit==0.16.1
 pydantic-settings==2.16.1
+# httpx нужен и самому прогону JPlag (labqueue/jplag_run.py качает им tarball'ы),
+# не только как транзитивная зависимость githubkit
+httpx==0.28.1
 # githubkit 0.16.1 не ограничил сверху hishel и ждёт из него CachePolicy;
 # pip затягивает hishel 2.x, где его нет — ImportError на сборке отчёта
 hishel==1.4.0

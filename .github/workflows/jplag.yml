@@ -1,0 +1,89 @@
+name: JPlag (сходство решений)
+
+# Тяжёлый прогон: скачивает лаб-ветки приватных студенческих репо, гоняет JPlag
+# и выкладывает на доску ТОЛЬКО сводку (имена, проценты, имена файлов) — исходный
+# код студентов живёт во временном раннере и в репозиторий не попадает. Поэтому
+# workflow не реагирует на pull_request и вообще не исполняет чужой код.
+#
+# Публикация = коммит src/jplag-summary.json; откат — git revert того коммита.
+# После изменения summary пингуется refresh.yml, борд перерисовывается сразу.
+
+on:
+  schedule:
+    # раз в сутки на всякий случай; cron GitHub'а historically ненадёжен,
+    # основной способ — ручной запуск или пинг с локальной машины
+    - cron: "3 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jplag
+  cancel-in-progress: false
+
+jobs:
+  jplag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r src/requirements.txt
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/cache@v4
+        with:
+          path: src/tools
+          key: jplag-jar-6.3.0
+
+      - uses: actions/cache@v4
+        with:
+          # ветки обновляются чаще, чем мы что-то кэшируем по ключу: ключ уникальный
+          # на прогон, restore-keys цепляет самый свежий прошлый кэш, экономя трафик
+          path: src/jplag-src
+          key: jplag-src-${{ github.run_id }}
+          restore-keys: jplag-src-
+
+      - name: Прогон JPlag
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+          GH_ORG: intropy24
+        run: python src/jplag_check.py
+
+      - name: Опубликовать summary
+        id: pub
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          if git diff --quiet -- src/jplag-summary.json; then
+            echo "summary без изменений"
+            exit 0
+          fi
+          git config user.name "intropy24-bot"
+          git config user.email "bot@intropy24.local"
+          git add src/jplag-summary.json
+          git commit -m "⚖️ jplag: авто-обновление summary"
+          AUTH=$(printf 'x-access-token:%s' "$GH_PAT" | base64 -w0)
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $AUTH" \
+            push https://github.com/intropy24/infoboard.git HEAD:main
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Пинг обновления бора
+        if: steps.pub.outputs.changed == 'true'
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          curl -sf -X POST \
+            -H "Authorization: Bearer $GH_PAT" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/intropy24/infoboard/actions/workflows/refresh.yml/dispatches \
+            -d '{"ref":"main"}'
