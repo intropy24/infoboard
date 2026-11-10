@@ -2,6 +2,7 @@
 from datetime import datetime
 
 from .config import MSK
+from .jplag_chart import jplag_section
 from .model import QueueItem, StudentStats
 from .speed import speed_chart
 
@@ -198,3 +199,4 @@ def report_md(
     )
     print()
     speed_chart(charts)
+    jplag_section()
