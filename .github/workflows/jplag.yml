@@ -72,6 +72,10 @@ jobs:
           git config user.email "bot@intropy24.local"
           git add src/jplag-summary.json
           git commit -m "⚖️ jplag: авто-обновление summary"
+          # actions/checkout уже вписал свой extraheader (Bearer GITHUB_TOKEN);
+          # второй Authorization git передал бы списком — GitHub отвечает 400,
+          # поэтому сначала снимаем раннеровский заголовок
+          git config --unset-all http.https://github.com/.extraheader || true
           AUTH=$(printf 'x-access-token:%s' "$GH_PAT" | base64 -w0)
           git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $AUTH" \
             push https://github.com/intropy24/infoboard.git HEAD:main
