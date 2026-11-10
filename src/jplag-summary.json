@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-11-10T14:59+00:00",
- "checked": "10.11.2026 17:59",
+ "generated_at": "2026-11-10T15:06+00:00",
+ "checked": "10.11.2026 18:06",
  "min_sim": 80.0,
  "jplag": "6.3.0",
  "failed": 0,
@@ -732,70 +732,49 @@
     },
     {
      "a": "Negati8",
-     "b": "Ksenia753726",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "VityaRolex",
-     "b": "Ksenia753726",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Moysha228",
-     "b": "Ksenia753726",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Mauser-28",
-     "b": "Ksenia753726",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Moysha228",
-     "b": "Uliana-crypto",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Mauser-28",
-     "b": "Uliana-crypto",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Negati8",
-     "b": "Alexandratrues",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "VityaRolex",
-     "b": "Alexandratrues",
+     "b": "Moysha228",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
     },
     {
      "a": "abrikossik",
-     "b": "Alexandratrues",
+     "b": "Moysha228",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
     },
     {
-     "a": "VityaRolex",
-     "b": "S0meb0dyQwQ",
+     "a": "Mauser-28",
+     "b": "Moysha228",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Moysha228",
+     "b": "1ZV1",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Dzianef",
+     "b": "Moysha228",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Moysha228",
+     "b": "s4pphireee",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Moysha228",
+     "b": "Uliana-crypto",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
@@ -808,15 +787,36 @@
      "lab": "lab-01"
     },
     {
-     "a": "Negati8",
-     "b": "rnat200",
+     "a": "Moysha228",
+     "b": "Ksenia753726",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "sivct",
+     "b": "Moysha228",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
     },
     {
      "a": "VityaRolex",
-     "b": "rnat200",
+     "b": "Moysha228",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Mauser-28",
+     "b": "zxczhulik",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Negati8",
+     "b": "tr-lgtm",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
@@ -829,85 +829,8 @@
      "lab": "lab-01"
     },
     {
-     "a": "Negati8",
-     "b": "tr-lgtm",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
      "a": "VityaRolex",
      "b": "tr-lgtm",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Negati8",
-     "b": "1ZV1",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "VityaRolex",
-     "b": "1ZV1",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Moysha228",
-     "b": "1ZV1",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "abrikossik",
-     "b": "1ZV1",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Mauser-28",
-     "b": "1ZV1",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "sivct",
-     "b": "1ZV1",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Negati8",
-     "b": "noktoskazal2",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Negati8",
-     "b": "neEclipsepahaet",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Negati8",
-     "b": "VityaRolex",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Negati8",
-     "b": "Moysha228",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
@@ -921,7 +844,28 @@
     },
     {
      "a": "Negati8",
+     "b": "noktoskazal2",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Negati8",
+     "b": "rnat200",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Negati8",
      "b": "Mauser-28",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Negati8",
+     "b": "1ZV1",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
@@ -935,6 +879,27 @@
     },
     {
      "a": "Negati8",
+     "b": "s4pphireee",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Negati8",
+     "b": "Alexandratrues",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Negati8",
+     "b": "Ksenia753726",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Negati8",
      "b": "sivct",
      "avg": 0.0,
      "max": 0.0,
@@ -942,21 +907,42 @@
     },
     {
      "a": "Negati8",
-     "b": "s4pphireee",
+     "b": "neEclipsepahaet",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
     },
     {
-     "a": "VityaRolex",
-     "b": "noktoskazal2",
+     "a": "Negati8",
+     "b": "VityaRolex",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
     },
     {
      "a": "Mauser-28",
-     "b": "noktoskazal2",
+     "b": "abrikossik",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "abrikossik",
+     "b": "1ZV1",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "abrikossik",
+     "b": "Alexandratrues",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "sivct",
+     "b": "abrikossik",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
@@ -970,14 +956,63 @@
     },
     {
      "a": "VityaRolex",
-     "b": "Moysha228",
+     "b": "abrikossik",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Mauser-28",
+     "b": "noktoskazal2",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
     },
     {
      "a": "VityaRolex",
-     "b": "abrikossik",
+     "b": "noktoskazal2",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "VityaRolex",
+     "b": "rnat200",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Mauser-28",
+     "b": "1ZV1",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Dzianef",
+     "b": "Mauser-28",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Mauser-28",
+     "b": "s4pphireee",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Mauser-28",
+     "b": "Uliana-crypto",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Mauser-28",
+     "b": "Ksenia753726",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
@@ -985,6 +1020,20 @@
     {
      "a": "VityaRolex",
      "b": "Mauser-28",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "sivct",
+     "b": "1ZV1",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "VityaRolex",
+     "b": "1ZV1",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
@@ -998,84 +1047,35 @@
     },
     {
      "a": "VityaRolex",
-     "b": "sivct",
+     "b": "s4pphireee",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
     },
     {
      "a": "VityaRolex",
-     "b": "s4pphireee",
+     "b": "Alexandratrues",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
     },
     {
-     "a": "abrikossik",
-     "b": "Moysha228",
+     "a": "VityaRolex",
+     "b": "S0meb0dyQwQ",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
     },
     {
-     "a": "Mauser-28",
-     "b": "Moysha228",
+     "a": "VityaRolex",
+     "b": "Ksenia753726",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
     },
     {
-     "a": "Dzianef",
-     "b": "Moysha228",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "sivct",
-     "b": "Moysha228",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Moysha228",
-     "b": "s4pphireee",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Mauser-28",
-     "b": "abrikossik",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "sivct",
-     "b": "abrikossik",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Dzianef",
-     "b": "Mauser-28",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Mauser-28",
-     "b": "zxczhulik",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Mauser-28",
-     "b": "s4pphireee",
+     "a": "VityaRolex",
+     "b": "sivct",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
@@ -1088,13 +1088,6 @@
    "n": 3,
    "pairs": [
     {
-     "a": "tr-lgtm",
-     "b": "IskanderAndreevich",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-02"
-    },
-    {
      "a": "VityaRolex",
      "b": "IskanderAndreevich",
      "avg": 0.0,
@@ -1104,6 +1097,13 @@
     {
      "a": "tr-lgtm",
      "b": "VityaRolex",
+     "avg": 0.0,
+     "max": 0.0,
+     "lab": "lab-02"
+    },
+    {
+     "a": "tr-lgtm",
+     "b": "IskanderAndreevich",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-02"
