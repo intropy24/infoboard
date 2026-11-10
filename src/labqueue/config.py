@@ -3,7 +3,6 @@ import re
 from datetime import timedelta, timezone
 from pathlib import Path
 
-
 LAB_BRANCH_RE = re.compile(r"^lab-[0-9]{2}([-.].*)?$")
 
 EVENTS_CACHE_PATH = Path(__file__).resolve().parent.parent / "events-cache.json"
