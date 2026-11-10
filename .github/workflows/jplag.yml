@@ -38,7 +38,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: "25"  # JPlag 6.3.0 собран под Java 25 (class file 69.0), 21 не стартует
 
       - uses: actions/cache@v4
         with:

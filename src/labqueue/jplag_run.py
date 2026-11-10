@@ -224,7 +224,7 @@ def run_jplag(
     jar = ensure_jar()
     java = shutil.which("java")
     if not java:
-        raise SystemExit("нужна Java 21+ (java не найдена в PATH)")
+        raise SystemExit("нужна Java 25+ (java не найдена в PATH)")
     src_run = OUT_DIR / "_src"
     if src_run.exists():
         shutil.rmtree(src_run)
