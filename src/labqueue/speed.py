@@ -28,11 +28,11 @@ def speed_chart(charts: list[dict]) -> None:
     if not data:
         return
     jb = jplag_data()
-    jb_btns = '<button data-mode="jb-hist">⚖️ гистограмма</button><button data-mode="jb-graph">⚖️ граф</button>' if jb else ""
+    jb_btns = '<button data-mode="jb-hist">⚖️ гистограмма</button><button data-mode="jb-graph">🕸️ граф</button>' if jb else ""
     print('<div id="speed-wrap">')
     print('<div id="speed-side">')
     print('<div id="speed-controls"><select id="sp-lab"></select>')
-    print('<div id="sp-mode"><button data-mode="rate">стр/ч</button><button data-mode="lines" class="on">строк в коммите</button><button data-mode="heat">день×час</button><button data-mode="matrix">прогресс</button>' + jb_btns + '</div>')
+    print('<div id="sp-mode"><button data-mode="rate">🚀 стр/ч</button><button data-mode="lines" class="on">📝 строк в коммите</button><button data-mode="heat">🕐 день×час</button><button data-mode="matrix">✅ прогресс</button>' + jb_btns + '</div>')
     print('<div id="sp-times">')
     print('<label class="sp-dt"><input id="sp-from" type="text" placeholder="с: дд.мм.гггг чч:мм" spellcheck="false" autocomplete="off"><input type="datetime-local" tabindex="-1" aria-hidden="true"><button type="button" class="sp-cal" data-for="sp-from" title="выбрать дату">📅</button></label>')
     print('<label class="sp-dt"><input id="sp-to" type="text" placeholder="по: дд.мм.гггг чч:мм" spellcheck="false" autocomplete="off"><input type="datetime-local" tabindex="-1" aria-hidden="true"><button type="button" class="sp-cal" data-for="sp-to" title="выбрать дату">📅</button></label>')

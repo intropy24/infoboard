@@ -539,8 +539,8 @@
   Array.prototype.forEach.call(document.getElementById('sp-list').children, function (li) {
     var s = li.getAttribute('data-student');
     li.querySelector('i').style.background = 'hsl(' + hueOf(s) + ',72%,55%)';
-    li.onmouseenter = function () { state.focus = s; glide(); if (mode === 'heat') drawHeat(); else if (mode === 'matrix') drawMatrix(); };
-    li.onmouseleave = function () { state.focus = null; glide(); if (mode === 'heat') drawHeat(); else if (mode === 'matrix') drawMatrix(); };
+    li.onmouseenter = function () { state.focus = s; glide(); if (mode === 'heat') drawHeat(); else if (mode === 'matrix') drawMatrix(); else if (mode === 'jb-graph') jbListHover(s); };
+    li.onmouseleave = function () { state.focus = null; glide(); if (mode === 'heat') drawHeat(); else if (mode === 'matrix') drawMatrix(); else if (mode === 'jb-graph') jbListHover(null); };
     li.onclick = function () { // как чекбокс: один клик — видеть только его, ещё клик — добавить ещё одного
       if (picked[s]) { delete picked[s]; li.classList.remove('on'); }
       else { picked[s] = true; li.classList.add('on'); }
@@ -674,6 +674,17 @@
     c2.globalAlpha = 1;
   }
   function drawJbGraph() { jbLayout(); jbPaint(); jbInfo.textContent = JBGHINT; }
+  function jbListHover(s) { // наведение на имя в левом списке — та же подсветка, что от курсора на канвасе: колцо на узле + инфо-строка
+    if (!jbGc || !jbGeom) return;
+    if (s != null) {
+      for (var i = 0; i < jbGeom.nodes.length; i++) {
+        if (jbGeom.nodes[i].s === s) { jbHov = { node: i }; jbPaint(); jbInfo.textContent = jbInfoText(jbHov); return; }
+      }
+    }
+    jbHov = null;
+    jbPaint();
+    jbInfo.textContent = JBGHINT;
+  }
   function jbDist(px, py, x1, y1, x2, y2) { // расстояние от точки до отрезка — хит-тест рёбер
     var dx = x2 - x1, dy = y2 - y1, L = dx * dx + dy * dy;
     var t = L ? ((px - x1) * dx + (py - y1) * dy) / L : 0;
