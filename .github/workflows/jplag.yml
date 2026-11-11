@@ -8,9 +8,11 @@ name: JPlag (сходство решений)
 # Полные отчёты (.jplag: совпавшие фрагменты кода, кластеры, side-by-side) в этом
 # репозитории не остаются: артефакты публичного репо качаются кем угодно. Они уходят
 # release-ассетами в приватный intropy24/jplag-reports — видны только участникам оргa.
-# Смотреть: скачать lab-NN.jplag из релиза и перетащить на https://jplag.github.io/JPlag
-# (сам .jplag и есть отчёт-архив, распаковывать нечего; вьювер обрабатывает файл
-# локально в браузере, ничего не загружает).
+# Смотреть (вьювер jplag.github.io не годится — он под старый формат, а с 6.3.0
+# формат новый): скачать lab-NN.jplag из релиза и рядом с jar запустить
+#   java -jar tools/jplag-6.3.0-jar-with-dependencies.jar -M VIEW lab-NN.jplag
+# встроенный в jar вьювер отдаёт совместимый интерфейс на http://localhost:1996;
+# файл обрабатывается локально, ничего никуда не загружается.
 #
 # Публикация = коммит src/jplag-summary.json; откат — git revert того коммита.
 # После изменения summary пингуется refresh.yml, борд перерисовывается сразу.
@@ -118,7 +120,7 @@ jobs:
           gh release create "reports-${{ github.run_number }}" \
             --repo intropy24/jplag-reports \
             --title "Отчёты JPlag — прогон #${{ github.run_number }}" \
-            --notes "Перетащить нужный lab-NN.jplag на https://jplag.github.io/JPlag (обработка локально в браузере, распаковывать не нужно)" \
+            --notes "Смотреть: java -jar jplag-6.3.0-jar-with-dependencies.jar -M VIEW lab-NN.jplag → http://localhost:1996 (хостовый вьювер не годится — он под старый формат)" \
             "$tmp"/*.jplag
           # накопление не бесконечное: держим последние 10 прогонов (список — от новых к старым)
           gh release list --repo intropy24/jplag-reports --limit 100 --json tagName,createdAt -q 'sort_by(.createdAt) | reverse | .[10:][].tagName' | while read -r tag; do
