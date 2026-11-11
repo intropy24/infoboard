@@ -111,7 +111,8 @@ jobs:
           gh release create "reports-${{ github.run_number }}" \
             --repo intropy24/jplag-reports \
             --title "Отчёты JPlag — прогон #${{ github.run_number }}" \
-            --notes "Перетащить all.jplag на https://jplag.github.io/JPlag (обработка локально в браузере)"
+            --notes "Перетащить all.jplag на https://jplag.github.io/JPlag (обработка локально в браузере)" \
+            "/tmp/jplag-reports-${{ github.run_number }}.zip"
           echo "выложено: $(du -h "/tmp/jplag-reports-${{ github.run_number }}.zip" | cut -f1)"
           # накопление не бесконечное: держим последние 10 прогонов (список — от новых к старым)
           gh release list --repo intropy24/jplag-reports --limit 100 --json tagName,createdAt -q 'sort_by(.createdAt) | reverse | .[10:][].tagName' | while read -r tag; do
