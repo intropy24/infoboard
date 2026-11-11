@@ -37,6 +37,10 @@ def speed_chart(charts: list[dict]) -> None:
     print('<label class="sp-dt"><input id="sp-from" type="text" placeholder="с: дд.мм.гггг чч:мм" spellcheck="false" autocomplete="off"><input type="datetime-local" tabindex="-1" aria-hidden="true"><button type="button" class="sp-cal" data-for="sp-from" title="выбрать дату">📅</button></label>')
     print('<label class="sp-dt"><input id="sp-to" type="text" placeholder="по: дд.мм.гггг чч:мм" spellcheck="false" autocomplete="off"><input type="datetime-local" tabindex="-1" aria-hidden="true"><button type="button" class="sp-cal" data-for="sp-to" title="выбрать дату">📅</button></label>')
     print('<div class="sp-ctl-row"><button id="sp-reset" title="показать всё время">×</button><button id="sp-scale" title="вертикальная шкала кривых">лин</button></div>')
+    if jb:
+        print('<div class="sp-ctl-row" id="sp-jb-thr" style="display:none">'
+              '<input type="range" id="jb-min-edge" min="0" max="10" step="0.5" value="0" title="минимальное среднее сходство пары, чтобы её ребро попало на граф">'
+              '<span id="jb-min-edge-lbl">≥0%</span></div>')
     print('</div>')
     print('</div>')
     print('<ul id="sp-list">')

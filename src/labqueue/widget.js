@@ -155,6 +155,8 @@
   if (!JB) Array.prototype.forEach.call(document.querySelectorAll('#sp-mode button[data-mode^="jb-"]'), function (b) { b.parentNode.removeChild(b); });
   btns = document.querySelectorAll('#sp-mode button');
   var jbCv = document.getElementById('speed-jb'), jbGc = document.getElementById('speed-jbg'), jbInfo = document.getElementById('sp-jb-info');
+  var jbThr = document.getElementById('jb-min-edge'), jbThrLbl = document.getElementById('jb-min-edge-lbl'),
+      jbThrRow = document.getElementById('sp-jb-thr'); // бегунок «ребро ≥ N%», виден только в режиме графа
   // heat-map «день недели × час»: третья мода вместо кривых рисует сетку 7×24
   // с итоговой строкой снизу (по часам) и колонкой справа (по дням), где цвет
   // ячейки — число коммитов; агрегирует те же серии, что оставили фильтры, в окне «с/по»
@@ -443,6 +445,7 @@
     if (jbCv) jbCv.style.display = m === 'jb-hist' ? 'block' : 'none';
     if (jbGc) jbGc.style.display = m === 'jb-graph' ? 'block' : 'none';
     if (jbInfo) jbInfo.style.display = jbOn ? 'block' : 'none';
+    if (jbThrRow) jbThrRow.style.display = m === 'jb-graph' ? 'flex' : 'none';
     Array.prototype.forEach.call(btns, function (b) { b.classList.toggle('on', b.getAttribute('data-mode') === m); });
     if (spScale) spScale.style.display = heatOn || mxOn || jbOn ? 'none' : '';
     if (heatOn) { drawHeat(); return; }
@@ -556,6 +559,7 @@
   var jbHov = null; // {node:i} | {edge:i} — что сейчас под курсором графа
   var jbGeom = null; // последний кадр {W,H,nodes,edges,ps} — для хит-тестов
   var JB_TOP_EDGES = 18; // рёбер в графе: топ по AVG; все пары — это одуванчик вместо смысла
+  var jbMinEdge = 0; // бегунок #jb-min-edge: пары слабее этого AVG% на граф не попадают
   function jbPlural(n) { // пар/пара/пары
     if (n % 10 === 1 && n % 100 !== 11) return 'пара';
     if (n % 10 >= 2 && n % 10 <= 4 && !(n % 100 >= 12 && n % 100 <= 14)) return 'пары';
@@ -610,9 +614,15 @@
     var pk = Object.keys(picked);
     return pk.length ? ' · закреплены: ' + pk.sort().join(', ') : '';
   }
-  function jbHint() { return JBGHINT + jbPickedHint(); }
+  function jbHint() { return JBGHINT + jbPickedHint() + (jbMinEdge > 0 ? ' · рёбра ≥' + jbMinEdge + '%' : ''); }
   function jbLayout() { // узлы по окружности (порядок по алфавиту — кадр детерминированный), рёбра — топ по AVG
     var ps = jbPairs(), seen = {}, order = [];
+    if (jbThr) { // потолок бегунка — самый сильный AVG кадра: за него ползунок не вылезет
+      var mx = ps.length ? Math.ceil(ps[0].avg) : 1;
+      jbThr.max = mx;
+      if (jbMinEdge > mx) { jbMinEdge = mx; jbThr.value = mx; if (jbThrLbl) jbThrLbl.textContent = '≥' + mx + '%'; }
+    }
+    if (jbMinEdge > 0) ps = ps.filter(function (p) { return p.avg >= jbMinEdge; }); // бегунок: слабые рёбра не рисуем
     ps.forEach(function (p) {
       if (!(p.a in seen)) { seen[p.a] = 1; order.push(p.a); }
       if (!(p.b in seen)) { seen[p.b] = 1; order.push(p.b); }
@@ -746,5 +756,12 @@
       } else jbFocus = null;
       jbPaint();
     });
+  }
+  if (jbThr) { // бегунок минимальной похожесть: пересобираем кадр графа на каждое движение
+    jbThr.oninput = function () {
+      jbMinEdge = parseFloat(jbThr.value) || 0;
+      if (jbThrLbl) jbThrLbl.textContent = '≥' + jbMinEdge + '%';
+      if (mode === 'jb-graph') drawJbGraph(); // в прочих режимах бегунка не видно и перерисовка не нужна
+    };
   }
 })();
