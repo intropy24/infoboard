@@ -632,19 +632,22 @@
     var cMut = cs.getPropertyValue('--muted').trim() || '#57606a';
     var cFg = cs.getPropertyValue('--fg').trim() || '#1f2328';
     var nodes = jbGeom.nodes, edges = jbGeom.edges, top = edges.length ? edges[0].avg || 1 : 1;
-    var nbr = null; // при закреплённом студенте ярки только он и соседи по рёбрам
-    if (jbFocus) {
+    // hover и клик рисуют одинаковый «фокус»: наведение (с канваса или из списка) гасит
+    // чужие рёбра и узлы так же, как закреплённый студент; наведение приоритетнее закрепления
+    var foc = jbHov && jbHov.node != null ? nodes[jbHov.node].s : jbFocus;
+    var nbr = null; // при фокусе ярки только сам студент и соседи по рёбрам
+    if (foc) {
       nbr = {};
-      nbr[jbFocus] = 1;
+      nbr[foc] = 1;
       edges.forEach(function (ed) {
-        if (nodes[ed.a].s === jbFocus) nbr[nodes[ed.b].s] = 1;
-        if (nodes[ed.b].s === jbFocus) nbr[nodes[ed.a].s] = 1;
+        if (nodes[ed.a].s === foc) nbr[nodes[ed.b].s] = 1;
+        if (nodes[ed.b].s === foc) nbr[nodes[ed.a].s] = 1;
       });
     }
     var i;
     for (i = 0; i < edges.length; i++) {
       var e = edges[i];
-      var rel = !jbFocus || nodes[e.a].s === jbFocus || nodes[e.b].s === jbFocus;
+      var rel = !foc || nodes[e.a].s === foc || nodes[e.b].s === foc;
       var hovE = jbHov && jbHov.edge === i;
       c2.globalAlpha = rel ? Math.min(1, 0.25 + 0.7 * (e.avg / top)) : 0.05;
       c2.strokeStyle = hovE ? '#4493f8' : '#f85149';
