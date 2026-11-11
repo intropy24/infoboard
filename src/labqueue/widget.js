@@ -17,7 +17,7 @@
   var fmtTip = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   var state = { focus: null }; // студент, на чьём имени сейчас курсор списка
   var mode = 'lines'; // 'rate' — стр/ч, 'lines' — строк в коммите (дефолт: строк — шкала честнее)
-  var ylog = true; // вертикальная шкала кривых: лог по умолчанию (темп скачет на порядки), кнопка #sp-scale переключает
+  var ylog = false; // вертикальная шкала кривых: по умолчанию линейная, кнопка #sp-scale переключает в лог
   function targetAlpha(d) { // цель прозрачности: при наведении кривые студента сплошные, остальные едва видны
     if (d.hidden) return 0.04;
     if (state.focus) return d.student === state.focus ? 0.95 : 0.04;
@@ -87,7 +87,7 @@
         x: { type: 'linear',
              ticks: { maxRotation: 0, autoSkip: true, callback: function (v) { return fmtTick.format(new Date(v)); } },
              grid: { color: 'rgba(128,128,128,.15)' } },
-        y: { type: 'logarithmic', title: { display: true, text: 'строк в коммите (лог)' },
+        y: { type: 'linear', title: { display: true, text: 'строк в коммите (лин)' },
              ticks: { callback: function (v) { // в лог-шкале подписываем только 1,2,5 · 10^n; в лин — все деления
                  if (ylog === false) return String(Math.round(v));
                  var r = Math.round(Math.log10(v)), q = v / Math.pow(10, r);
@@ -561,11 +561,16 @@
     if (n % 10 >= 2 && n % 10 <= 4 && !(n % 100 >= 12 && n % 100 <= 14)) return 'пары';
     return 'пар';
   }
-  function jbPairs() { // пары выбранной лабы (пусто = все лабы), сортированные по AVG
-    var ps = [];
+  function jbPairs() { // пары выбранной лабы (пусто = все), сортированные по AVG; если слева
+    // закреплены студенты — только пары с их участием, контрагенты остаются: именно
+    // они и показывают, с кем закреплённый студент похож
+    var ps = [], pmap = {}, pick = Object.keys(picked);
+    pick.forEach(function (n) { pmap[n] = 1; });
     if (!JB) return ps;
     JB.labs.forEach(function (L) {
-      if (!selL.value || L.lab === selL.value) L.pairs.forEach(function (p) { ps.push({ a: p.a, b: p.b, avg: p.avg, max: p.max, lab: L.lab }); });
+      if (!selL.value || L.lab === selL.value) L.pairs.forEach(function (p) {
+        if (!pick.length || pmap[p.a] || pmap[p.b]) ps.push({ a: p.a, b: p.b, avg: p.avg, max: p.max, lab: L.lab });
+      });
     });
     ps.sort(function (x, y) { return y.avg - x.avg; });
     return ps;
@@ -573,34 +578,39 @@
   function drawJbHist() { // распределение AVG пар по бакетам ×10%, старший сверху — как Distribution в viewer JPlag
     if (!JB) return;
     var ps = jbPairs(), hist = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-      ps.forEach(function (p) { hist[Math.min(9, Math.floor(p.avg / 10))]++; });
-      hist.reverse(); // категория 0 у горизонтального Chart.js рисуется сверху
-      var cs = getComputedStyle(document.documentElement);
-      var cMut = cs.getPropertyValue('--muted').trim() || '#57606a';
-      if (!jbChart) {
-        jbChart = new Chart(jbCv, {
-          type: 'bar',
-          data: { labels: [], datasets: [{ data: [], backgroundColor: '#f85149', hoverBackgroundColor: '#ff7b72', borderWidth: 0, barPercentage: 0.8 }] },
-          options: {
-            indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: { duration: 120 },
-            onClick: function () {}, // клик по столбцу ничего не фильтрует: таблица пар — в markdown над виджетом
-            plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (ctx) { var v = ctx.parsed.x; return v + ' ' + jbPlural(v); } } } },
-            scales: {
-              x: { ticks: { precision: 0, color: cMut }, grid: { color: cs.getPropertyValue('--border').trim() || '#d0d7de' }, title: { display: true, text: 'пар в бакете', color: cMut } },
-              y: { ticks: { color: cMut }, grid: { display: false } }
-            }
+    ps.forEach(function (p) { hist[Math.min(9, Math.floor(p.avg / 10))]++; });
+    hist.reverse(); // категория 0 у горизонтального Chart.js рисуется сверху
+    var cs = getComputedStyle(document.documentElement);
+    var cMut = cs.getPropertyValue('--muted').trim() || '#57606a';
+    if (!jbChart) {
+      jbChart = new Chart(jbCv, {
+        type: 'bar',
+        data: { labels: [], datasets: [{ data: [], backgroundColor: '#f85149', hoverBackgroundColor: '#ff7b72', borderWidth: 0, barPercentage: 0.8 }] },
+        options: {
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: { duration: 120 },
+          onClick: function () {}, // клик по столбцу ничего не фильтрует: таблица пар — в markdown над виджетом
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (ctx) { var v = ctx.parsed.x; return v + ' ' + jbPlural(v); } } } },
+          scales: {
+            x: { ticks: { precision: 0, color: cMut }, grid: { color: cs.getPropertyValue('--border').trim() || '#d0d7de' }, title: { display: true, text: 'пар в бакете', color: cMut } },
+            y: { ticks: { color: cMut }, grid: { display: false } }
           }
-        });
-      }
-      jbChart.data.labels = ['90–100%', '80–90%', '70–80%', '60–70%', '50–60%', '40–50%', '30–40%', '20–30%', '10–20%', '0–10%'];
-      jbChart.data.datasets[0].data = hist;
-      jbChart.update('none');
-      var labNow = selL.value || 'все лабы';
-      var has = !selL.value || JB.labs.some(function (L) { return L.lab === selL.value; });
-      jbInfo.textContent = !has ? labNow + ' — нет JPlag-данных'
-        : labNow + ' · пар ' + ps.length + (JB.checked ? ' · проверка от ' + JB.checked + ' МСК' : '') + ' · полоса — число пар в бакете среднего сходства (AVG)';
+        }
+      });
     }
+    jbChart.data.labels = ['90–100%', '80–90%', '70–80%', '60–70%', '50–60%', '40–50%', '30–40%', '20–30%', '10–20%', '0–10%'];
+    jbChart.data.datasets[0].data = hist;
+    jbChart.update('none');
+    var labNow = selL.value || 'все лабы';
+    var has = !selL.value || JB.labs.some(function (L) { return L.lab === selL.value; });
+    jbInfo.textContent = !has ? labNow + ' — нет JPlag-данных'
+      : labNow + ' · пар ' + ps.length + (JB.checked ? ' · проверка от ' + JB.checked + ' МСК' : '') + ' · полоса — число пар в бакете среднего сходства (AVG)' + jbPickedHint();
+  }
   var JBGHINT = 'узел — студент, ребро — похожесть пары (топ-' + JB_TOP_EDGES + ' по AVG); наведение — детали, клик по узлу — закрепить';
+  function jbPickedHint() { // суффикс инфо-строк JPlag-режимов: кадр отфильтрован по закреплённым слева
+    var pk = Object.keys(picked);
+    return pk.length ? ' · закреплены: ' + pk.sort().join(', ') : '';
+  }
+  function jbHint() { return JBGHINT + jbPickedHint(); }
   function jbLayout() { // узлы по окружности (порядок по алфавиту — кадр детерминированный), рёбра — топ по AVG
     var ps = jbPairs(), seen = {}, order = [];
     ps.forEach(function (p) {
@@ -676,7 +686,7 @@
     }
     c2.globalAlpha = 1;
   }
-  function drawJbGraph() { jbLayout(); jbPaint(); jbInfo.textContent = JBGHINT; }
+  function drawJbGraph() { jbLayout(); jbPaint(); jbInfo.textContent = jbHint(); }
   function jbListHover(s) { // наведение на имя в левом списке — та же подсветка, что от курсора на канвасе: колцо на узле + инфо-строка
     if (!jbGc || !jbGeom) return;
     if (s != null) {
@@ -686,7 +696,7 @@
     }
     jbHov = null;
     jbPaint();
-    jbInfo.textContent = JBGHINT;
+    jbInfo.textContent = jbHint();
   }
   function jbDist(px, py, x1, y1, x2, y2) { // расстояние от точки до отрезка — хит-тест рёбер
     var dx = x2 - x1, dy = y2 - y1, L = dx * dx + dy * dy;
@@ -709,7 +719,7 @@
     return null;
   }
   function jbInfoText(hit) {
-    if (!hit || !jbGeom) return JBGHINT;
+    if (!hit || !jbGeom) return jbHint();
     var n = jbGeom.nodes;
     if (hit.node != null) { // ps отсортирован по AVG — первая пара с этим студентом и есть максимальная
       var s = n[hit.node].s, cnt = 0, best = null;
@@ -728,7 +738,7 @@
       jbGc.style.cursor = hit ? 'pointer' : 'default';
       jbInfo.textContent = jbInfoText(hit);
     });
-    jbGc.addEventListener('mouseleave', function () { jbHov = null; jbPaint(); jbInfo.textContent = JBGHINT; });
+    jbGc.addEventListener('mouseleave', function () { jbHov = null; jbPaint(); jbInfo.textContent = jbHint(); });
     jbGc.addEventListener('click', function () { // узел — закрепить/отпустить, фон — снять закрепление
       if (jbHov && jbHov.node != null) {
         var s = jbGeom.nodes[jbHov.node].s;
