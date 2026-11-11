@@ -560,6 +560,10 @@
   var jbGeom = null; // последний кадр {W,H,nodes,edges,ps} — для хит-тестов
   var JB_TOP_EDGES = 18; // рёбер в графе: топ по AVG; все пары — это одуванчик вместо смысла
   var jbMinEdge = 0; // бегунок #jb-min-edge: пары слабее этого AVG% на граф не попадают
+  var jbDragRaf = 0; // перетаскивание бегунка: не больше одной перерисовки на кадр анимации
+  var jbPairsCache = null; // кэш jbPairs: ключ — лаба+закреплённые; порог ключ не меняет,
+  // поэтому тяганье ползунка не пересобирает и не сортирует тысячи пар на каждый input
+  var jbLblCache = {}; // имя → обрезанная подпись узла: measureText дорога, а шрифт постоянен
   function jbPlural(n) { // пар/пара/пары
     if (n % 10 === 1 && n % 100 !== 11) return 'пара';
     if (n % 10 >= 2 && n % 10 <= 4 && !(n % 100 >= 12 && n % 100 <= 14)) return 'пары';
@@ -568,6 +572,8 @@
   function jbPairs() { // пары выбранной лабы (пусто = все), сортированные по AVG; если слева
     // закреплены студенты — только пары с их участием, контрагенты остаются: именно
     // они и показывают, с кем закреплённый студент похож
+    var key = selL.value + '|' + Object.keys(picked).sort().join(',');
+    if (jbPairsCache && jbPairsCache.key === key) return jbPairsCache.ps; // только читают, никто ps не мутирует
     var ps = [], pmap = {}, pick = Object.keys(picked);
     pick.forEach(function (n) { pmap[n] = 1; });
     if (!JB) return ps;
@@ -577,6 +583,7 @@
       });
     });
     ps.sort(function (x, y) { return y.avg - x.avg; });
+    jbPairsCache = { key: key, ps: ps };
     return ps;
   }
   function drawJbHist() { // распределение AVG пар по бакетам ×10%, старший сверху — как Distribution в viewer JPlag
@@ -619,7 +626,7 @@
     var ps = jbPairs(), seen = {}, order = [];
     if (jbThr) { // потолок бегунка — самый сильный AVG кадра: за него ползунок не вылезет
       var mx = ps.length ? Math.ceil(ps[0].avg) : 1;
-      jbThr.max = mx;
+      if (jbThr.max != mx) jbThr.max = mx; // не дёргаем атрибут без реальной смены потолка
       if (jbMinEdge > mx) { jbMinEdge = mx; jbThr.value = mx; if (jbThrLbl) jbThrLbl.textContent = '≥' + mx + '%'; }
     }
     if (jbMinEdge > 0) ps = ps.filter(function (p) { return p.avg >= jbMinEdge; }); // бегунок: слабые рёбра не рисуем
@@ -687,8 +694,12 @@
       c2.fillStyle = 'hsl(' + hueOf(n.s) + ',72%,55%)';
       c2.fill();
       if (hi) { c2.strokeStyle = '#4493f8'; c2.lineWidth = 2; c2.stroke(); }
-      var nm = n.s;
-      while (nm.length > 2 && c2.measureText(nm + '…').width > 110) nm = nm.slice(0, -1);
+      var nm = jbLblCache[n.s]; // стрижём длинное имя один раз на имя, а не на кадр
+      if (nm === undefined) {
+        nm = n.s;
+        while (nm.length > 2 && c2.measureText(nm + '…').width > 110) nm = nm.slice(0, -1);
+        jbLblCache[n.s] = nm;
+      }
       c2.fillStyle = hi ? cFg : cMut;
       var cos = Math.cos(n.ang);
       c2.textAlign = cos > 0.3 ? 'left' : cos < -0.3 ? 'right' : 'center';
@@ -761,7 +772,8 @@
     jbThr.oninput = function () {
       jbMinEdge = parseFloat(jbThr.value) || 0;
       if (jbThrLbl) jbThrLbl.textContent = '≥' + jbMinEdge + '%';
-      if (mode === 'jb-graph') drawJbGraph(); // в прочих режимах бегунка не видно и перерисовка не нужна
+      if (mode !== 'jb-graph' || jbDragRaf) return; // в прочих режимах бегунка не видно; в этом — один кадр на событие
+      jbDragRaf = requestAnimationFrame(function () { jbDragRaf = 0; drawJbGraph(); });
     };
   }
 })();
