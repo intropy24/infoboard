@@ -36,7 +36,7 @@ def speed_chart(charts: list[dict]) -> None:
     print('<div id="sp-times">')
     print('<label class="sp-dt"><input id="sp-from" type="text" placeholder="с: дд.мм.гггг чч:мм" spellcheck="false" autocomplete="off"><input type="datetime-local" tabindex="-1" aria-hidden="true"><button type="button" class="sp-cal" data-for="sp-from" title="выбрать дату">📅</button></label>')
     print('<label class="sp-dt"><input id="sp-to" type="text" placeholder="по: дд.мм.гггг чч:мм" spellcheck="false" autocomplete="off"><input type="datetime-local" tabindex="-1" aria-hidden="true"><button type="button" class="sp-cal" data-for="sp-to" title="выбрать дату">📅</button></label>')
-    print('<button id="sp-reset" title="показать всё время">×</button>')
+    print('<div class="sp-ctl-row"><button id="sp-reset" title="показать всё время">×</button><button id="sp-scale" title="вертикальная шкала кривых">лог</button></div>')
     print('</div>')
     print('</div>')
     print('<ul id="sp-list">')

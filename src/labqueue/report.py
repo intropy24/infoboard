@@ -2,7 +2,6 @@
 from datetime import datetime
 
 from .config import MSK
-from .jplag_chart import jplag_section
 from .model import QueueItem, StudentStats
 from .speed import speed_chart
 
@@ -198,5 +197,4 @@ def report_md(
         + (f" · **репо с ошибками {failed}**" if failed else "")
     )
     print()
-    jplag_section()
     speed_chart(charts)

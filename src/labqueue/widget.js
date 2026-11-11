@@ -17,6 +17,7 @@
   var fmtTip = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   var state = { focus: null }; // студент, на чьём имени сейчас курсор списка
   var mode = 'lines'; // 'rate' — стр/ч, 'lines' — строк в коммите (дефолт: строк — шкала честнее)
+  var ylog = true; // вертикальная шкала кривых: лог по умолчанию (темп скачет на порядки), кнопка #sp-scale переключает
   function targetAlpha(d) { // цель прозрачности: при наведении кривые студента сплошные, остальные едва видны
     if (d.hidden) return 0.04;
     if (state.focus) return d.student === state.focus ? 0.95 : 0.04;
@@ -87,7 +88,8 @@
              ticks: { maxRotation: 0, autoSkip: true, callback: function (v) { return fmtTick.format(new Date(v)); } },
              grid: { color: 'rgba(128,128,128,.15)' } },
         y: { type: 'logarithmic', title: { display: true, text: 'строк в коммите (лог)' },
-             ticks: { callback: function (v) { // подписываем только 1,2,5 · 10^n, остальные деления прячем
+             ticks: { callback: function (v) { // в лог-шкале подписываем только 1,2,5 · 10^n; в лин — все деления
+                 if (ylog === false) return String(Math.round(v));
                  var r = Math.round(Math.log10(v)), q = v / Math.pow(10, r);
                  if (Math.abs(q - 1) < 1e-9 || Math.abs(q - 2) < 1e-9 || Math.abs(q - 5) < 1e-9) return String(Math.round(v));
                  return null; } },
@@ -421,6 +423,15 @@
     var cell = mxCell[mxRowN[mxHover.r] + '|' + mxColL[mxHover.c]];
     if (cell && cell.u) window.open(cell.u, '_blank');
   });
+  var spScale = document.getElementById('sp-scale');
+  function yTitle(m) { return (m === 'rate' ? 'скорость коммита, стр/ч' : 'строк в коммите') + (ylog ? ' (лог)' : ' (лин)'); }
+  if (spScale) spScale.onclick = function () { // лог/лин: Chart.js сам перестроит деления, анимация приятная
+    ylog = !ylog;
+    chart.options.scales.y.type = ylog ? 'logarithmic' : 'linear';
+    chart.options.scales.y.title.text = yTitle(mode);
+    spScale.textContent = ylog ? 'лог' : 'лин';
+    chart.update();
+  };
   function setMode(m) { // переключение метрики Y / оверлеев: все величины уже лежат в точках
     mode = m;
     var heatOn = m === 'heat', mxOn = m === 'matrix', jbOn = m === 'jb-hist' || m === 'jb-graph';
@@ -433,12 +444,13 @@
     if (jbGc) jbGc.style.display = m === 'jb-graph' ? 'block' : 'none';
     if (jbInfo) jbInfo.style.display = jbOn ? 'block' : 'none';
     Array.prototype.forEach.call(btns, function (b) { b.classList.toggle('on', b.getAttribute('data-mode') === m); });
+    if (spScale) spScale.style.display = heatOn || mxOn || jbOn ? 'none' : '';
     if (heatOn) { drawHeat(); return; }
     if (mxOn) { drawMatrix(); return; }
     if (m === 'jb-hist') { drawJbHist(); return; }
     if (m === 'jb-graph') { drawJbGraph(); return; }
     ds.forEach(function (d) { d.data.forEach(function (p) { p.y = m === 'rate' ? (p.r === null ? 1 : p.r) : p.l; }); });
-    chart.options.scales.y.title.text = m === 'rate' ? 'скорость коммита, стр/ч (лог)' : 'строк в коммите (лог)';
+    chart.options.scales.y.title.text = yTitle(m);
     chart.update('none');
   }
   Array.prototype.forEach.call(btns, function (b) { b.onclick = function () { setMode(b.getAttribute('data-mode')); }; });
