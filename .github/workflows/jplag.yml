@@ -5,6 +5,12 @@ name: JPlag (сходство решений)
 # код студентов живёт во временном раннере и в репозиторий не попадает. Поэтому
 # workflow не реагирует на pull_request и вообще не исполняет чужой код.
 #
+# Полные отчёты (.jplag: совпавшие фрагменты кода, кластеры, side-by-side) в этом
+# репозитории не остаются: артефакты публичного репо качаются кем угодно. Они уходят
+# release-ассетом в приватный intropy24/jplag-reports — виден только участникам оргa.
+# Смотреть: распаковать zip и перетащить all.jplag на https://jplag.github.io/JPlag
+# (вьювер обрабатывает файл локально в браузере, ничего не загружает).
+#
 # Публикация = коммит src/jplag-summary.json; откат — git revert того коммита.
 # После изменения summary пингуется refresh.yml, борд перерисовывается сразу.
 
@@ -91,3 +97,24 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/intropy24/infoboard/actions/workflows/refresh.yml/dispatches \
             -d '{"ref":"main"}'
+
+      - name: Отчёты JPlag в приватный jplag-reports
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          set -euo pipefail
+          cd src/jplag-reports
+          if ! ls -d lab-* >/dev/null 2>&1; then echo "нет отчётов — пропускаем"; exit 0; fi
+          # _src — полное дерево скачанных веток, его не публикуем даже приватно:
+          # вьюверу нужны только .jplag-отчёты (в них уже есть фрагменты совпадений)
+          zip -q -r "/tmp/jplag-reports-${{ github.run_number }}.zip" lab-*
+          gh release create "reports-${{ github.run_number }}" \
+            --repo intropy24/jplag-reports \
+            --title "Отчёты JPlag — прогон #${{ github.run_number }}" \
+            --notes "Перетащить all.jplag на https://jplag.github.io/JPlag (обработка локально в браузере)"
+          echo "выложено: $(du -h "/tmp/jplag-reports-${{ github.run_number }}.zip" | cut -f1)"
+          # накопление не бесконечное: держим последние 10 прогонов (список — от новых к старым)
+          gh release list --repo intropy24/jplag-reports --limit 100 --json tagName,createdAt -q 'sort_by(.createdAt) | reverse | .[10:][].tagName' | while read -r tag; do
+            gh release delete "$tag" --repo intropy24/jplag-reports --cleanup-tag --yes
+            echo "удалён старый релиз $tag"
+          done
