@@ -6,24 +6,41 @@ name: JPlag (сходство решений)
 # workflow не реагирует на pull_request и вообще не исполняет чужой код.
 #
 # Полные отчёты (.jplag: совпавшие фрагменты кода, кластеры, side-by-side) в этом
-# репозитории не остаются: артефакты публичного репо качаются кем угодно. Они уходят
-# release-ассетами в приватный intropy24/jplag-reports — видны только участникам оргa.
+# репо не остаются. Они уходят release-ассетами в приватный intropy24/jplag-reports
+
 # Смотреть: открыть https://intropy24.github.io/infoboard/jplag-viewer/ и перетащить
-# на неё lab-NN.jplag из релиза (или из локального scripts/jplag-reports). Этот вьювер —
-# статичная сборка ровно из того же jar (site/jplag-viewer/, синхронизировать при
-# смене JPLAG_VERSION): хостовый jplag.github.io не годится — он под старый формат.
-# Обработка локально в браузере: на наш Pages лежит только вьювер, данные не уходят.
-# Офлайн-альтернатива: java -jar tools/jplag-6.3.0-…jar -M VIEW lab-NN.jplag → :1996.
-#
+# на неё lab-NN.jplag из релиза (by-task прогоны: lab-NN-task-XX.jplag).
+# Этот вьювер — статичная сборка ровно из того же jar (site/jplag-viewer/, синхронизировать
+# при смене JPLAG_VERSION): хостовый jplag.github.io не годится — он под старый формат.
+
 # Публикация = коммит src/jplag-summary.json; откат — git revert того коммита.
-# После изменения summary пингуется refresh.yml, борд перерисовывается сразу.
+# После изменения summary пингуется refresh.yml, инфоборд перерисовывается сразу.
 
 on:
   schedule:
-    # раз в сутки на всякий случай; cron GitHub'а historically ненадёжен,
-    # основной способ — ручной запуск или пинг с локальной машины
+    # раз в сутки на всякий случай; cron GitHub'а ненадёжен,
+    # надежный способ — ручной запуск или cron с локальной машины
     - cron: "3 0 * * *"
   workflow_dispatch:
+    inputs:
+      labs:
+        description: "Номера лаб через пробел (пусто = все)"
+        required: false
+        default: ""
+      by_task:
+        description: "Раздельно по подзаданиям (NN-) вместо лабы целиком"
+        type: boolean
+        required: false
+        default: false
+      min_sim:
+        description: "Порог похожести для показа пар, % (пусто = 80)"
+        required: false
+        default: ""
+      force:
+        description: "Перескачать ветки даже при свежем кэше"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -48,7 +65,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "25"  # JPlag 6.3.0 собран под Java 25 (class file 69.0), 21 не стартует
+          java-version: "25"  # JPlag 6.3.0 собран под Java 25 (class file 69.0)
 
       - uses: actions/cache@v4
         with:
@@ -57,8 +74,6 @@ jobs:
 
       - uses: actions/cache@v4
         with:
-          # ветки обновляются чаще, чем мы что-то кэшируем по ключу: ключ уникальный
-          # на прогон, restore-keys цепляет самый свежий прошлый кэш, экономя трафик
           path: src/jplag-src
           key: jplag-src-${{ github.run_id }}
           restore-keys: jplag-src-
@@ -67,7 +82,22 @@ jobs:
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
           GH_ORG: intropy24
-        run: python src/jplag_check.py
+        run: |
+          ARGS=()
+          if [ -n "${{ inputs.labs }}" ]; then
+            ARGS+=(--lab ${{ inputs.labs }})
+          fi
+          if [ "${{ inputs.by_task }}" = "true" ]; then
+            ARGS+=(--by-task)
+          fi
+          if [ -n "${{ inputs.min_sim }}" ]; then
+            ARGS+=(--min-sim "${{ inputs.min_sim }}")
+          fi
+          if [ "${{ inputs.force }}" = "true" ]; then
+            ARGS+=(--force)
+          fi
+          echo "аргументы: ${ARGS[*]:-все лабы, целиком, порог 80}"
+          python src/jplag_check.py "${ARGS[@]}"
 
       - name: Опубликовать summary
         id: pub
@@ -82,16 +112,14 @@ jobs:
           git config user.email "bot@intropy24.local"
           git add src/jplag-summary.json
           git commit -m "⚖️ jplag: авто-обновление summary"
-          # actions/checkout уже вписал свой extraheader (Bearer GITHUB_TOKEN);
-          # второй Authorization git передал бы списком — GitHub отвечает 400,
-          # поэтому сначала снимаем раннеровский заголовок
+
           git config --unset-all http.https://github.com/.extraheader || true
           AUTH=$(printf 'x-access-token:%s' "$GH_PAT" | base64 -w0)
           git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $AUTH" \
             push https://github.com/intropy24/infoboard.git HEAD:main
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
-      - name: Пинг обновления бора
+      - name: Пинг обновления инфоборда
         if: steps.pub.outputs.changed == 'true'
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
@@ -109,20 +137,27 @@ jobs:
           set -euo pipefail
           cd src/jplag-reports
           if ! ls lab-*/*.jplag >/dev/null 2>&1; then echo "нет отчётов — пропускаем"; exit 0; fi
-          # каждый .jplag самодостаточен (zip с overview.json внутри), вьювер ест его
-          # напрямую — внешний zip на релизе только сбивает с толку. Вьюверу не нужен
-          # и _src с полными исходниками: в .jplag уже есть фрагменты совпадений.
+
           tmp=/tmp/jplag-assets; rm -rf "$tmp"; mkdir -p "$tmp"
           for f in lab-*/*.jplag; do
-            # lab-01/all.jplag → lab-01.jplag: имя ассета = имя лабы, тянуть без распаковки
-            cp "$f" "$tmp/$(basename "$(dirname "$f")").jplag"
+            # lab-01/all.jplag → lab-01.jplag: имя ассета = имя лабы, тянуть без распаковки;
+            # by-task прогоны: lab-01/task-07.jplag → lab-01-task-07.jplag
+            lab=$(basename "$(dirname "$f")")
+            grp=$(basename "$f" .jplag)
+            if [ "$grp" = all ]; then
+              cp "$f" "$tmp/$lab.jplag"
+            else
+              cp "$f" "$tmp/$lab-$grp.jplag"
+            fi
           done
+
           du -h "$tmp"/*.jplag
           gh release create "reports-${{ github.run_number }}" \
             --repo intropy24/jplag-reports \
             --title "Отчёты JPlag — прогон #${{ github.run_number }}" \
-            --notes "Открыть https://intropy24.github.io/infoboard/jplag-viewer/ и перетащить сюда скачанный lab-NN.jplag (обработка локально в браузере)" \
+            --notes "Для просмотра открыть https://intropy24.github.io/infoboard/jplag-viewer/ и перетащить скачанный lab-NN.jplag (by-task: lab-NN-task-XX.jplag)" \
             "$tmp"/*.jplag
+
           # накопление не бесконечное: держим последние 10 прогонов (список — от новых к старым)
           gh release list --repo intropy24/jplag-reports --limit 100 --json tagName,createdAt -q 'sort_by(.createdAt) | reverse | .[10:][].tagName' | while read -r tag; do
             gh release delete "$tag" --repo intropy24/jplag-reports --cleanup-tag --yes
