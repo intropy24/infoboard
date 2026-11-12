@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-11-11T15:04+00:00",
- "checked": "11.11.2026 18:04",
+ "generated_at": "2026-11-12T06:59+00:00",
+ "checked": "12.11.2026 09:59",
  "min_sim": 80.0,
  "jplag": "6.3.0",
  "failed": 0,
@@ -31,10 +31,10 @@
      "lab": "lab-01"
     },
     {
-     "a": "rnat200",
-     "b": "Ksenia753726",
-     "avg": 8.1,
-     "max": 8.2,
+     "a": "Ksenia753726",
+     "b": "rnat200",
+     "avg": 7.8,
+     "max": 8.0,
      "lab": "lab-01"
     },
     {
@@ -47,8 +47,8 @@
     {
      "a": "rnat200",
      "b": "s4pphireee",
-     "avg": 7.5,
-     "max": 9.0,
+     "avg": 7.2,
+     "max": 8.2,
      "lab": "lab-01"
     },
     {
@@ -75,15 +75,8 @@
     {
      "a": "noktoskazal2",
      "b": "S0meb0dyQwQ",
-     "avg": 6.0,
+     "avg": 5.8,
      "max": 12.5,
-     "lab": "lab-01"
-    },
-    {
-     "a": "rnat200",
-     "b": "Alexandratrues",
-     "avg": 5.9,
-     "max": 9.2,
      "lab": "lab-01"
     },
     {
@@ -91,6 +84,13 @@
      "b": "tr-lgtm",
      "avg": 5.8,
      "max": 12.1,
+     "lab": "lab-01"
+    },
+    {
+     "a": "rnat200",
+     "b": "Alexandratrues",
+     "avg": 5.7,
+     "max": 8.4,
      "lab": "lab-01"
     },
     {
@@ -108,10 +108,10 @@
      "lab": "lab-01"
     },
     {
-     "a": "Dzianef",
-     "b": "rnat200",
+     "a": "tr-lgtm",
+     "b": "S0meb0dyQwQ",
      "avg": 5.4,
-     "max": 17.6,
+     "max": 7.9,
      "lab": "lab-01"
     },
     {
@@ -136,10 +136,10 @@
      "lab": "lab-01"
     },
     {
-     "a": "tr-lgtm",
-     "b": "S0meb0dyQwQ",
+     "a": "Dzianef",
+     "b": "rnat200",
      "avg": 5.0,
-     "max": 7.0,
+     "max": 17.6,
      "lab": "lab-01"
     },
     {
@@ -150,17 +150,17 @@
      "lab": "lab-01"
     },
     {
-     "a": "rnat200",
+     "a": "Moysha228",
      "b": "tr-lgtm",
      "avg": 4.7,
-     "max": 6.3,
+     "max": 5.2,
      "lab": "lab-01"
     },
     {
-     "a": "zxczhulik",
-     "b": "S0meb0dyQwQ",
-     "avg": 4.4,
-     "max": 6.7,
+     "a": "rnat200",
+     "b": "tr-lgtm",
+     "avg": 4.5,
+     "max": 5.8,
      "lab": "lab-01"
     },
     {
@@ -175,6 +175,13 @@
      "b": "zxczhulik",
      "avg": 4.4,
      "max": 19.4,
+     "lab": "lab-01"
+    },
+    {
+     "a": "zxczhulik",
+     "b": "S0meb0dyQwQ",
+     "avg": 4.3,
+     "max": 6.7,
      "lab": "lab-01"
     },
     {
@@ -213,20 +220,6 @@
      "lab": "lab-01"
     },
     {
-     "a": "Moysha228",
-     "b": "tr-lgtm",
-     "avg": 3.8,
-     "max": 4.7,
-     "lab": "lab-01"
-    },
-    {
-     "a": "IskanderAndreevich",
-     "b": "rnat200",
-     "avg": 3.8,
-     "max": 16.1,
-     "lab": "lab-01"
-    },
-    {
      "a": "IskanderAndreevich",
      "b": "Ksenia753726",
      "avg": 3.7,
@@ -241,10 +234,17 @@
      "lab": "lab-01"
     },
     {
+     "a": "IskanderAndreevich",
+     "b": "rnat200",
+     "avg": 3.5,
+     "max": 16.1,
+     "lab": "lab-01"
+    },
+    {
      "a": "rnat200",
      "b": "zxczhulik",
-     "avg": 3.4,
-     "max": 4.3,
+     "avg": 3.3,
+     "max": 4.0,
      "lab": "lab-01"
     },
     {
@@ -252,6 +252,13 @@
      "b": "noktoskazal2",
      "avg": 3.2,
      "max": 13.4,
+     "lab": "lab-01"
+    },
+    {
+     "a": "rnat200",
+     "b": "1ZV1",
+     "avg": 3.2,
+     "max": 3.2,
      "lab": "lab-01"
     },
     {
@@ -269,9 +276,16 @@
      "lab": "lab-01"
     },
     {
+     "a": "VityaRolex",
+     "b": "neEclipsepahaet",
+     "avg": 3.0,
+     "max": 4.6,
+     "lab": "lab-01"
+    },
+    {
      "a": "s4pphireee",
      "b": "S0meb0dyQwQ",
-     "avg": 3.1,
+     "avg": 3.0,
      "max": 5.0,
      "lab": "lab-01"
     },
@@ -290,13 +304,6 @@
      "lab": "lab-01"
     },
     {
-     "a": "noktoskazal2",
-     "b": "rnat200",
-     "avg": 3.0,
-     "max": 3.0,
-     "lab": "lab-01"
-    },
-    {
      "a": "sivct",
      "b": "noktoskazal2",
      "avg": 2.9,
@@ -305,23 +312,23 @@
     },
     {
      "a": "Uliana-crypto",
-     "b": "S0meb0dyQwQ",
-     "avg": 2.9,
-     "max": 3.7,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Ksenia753726",
-     "b": "S0meb0dyQwQ",
-     "avg": 2.9,
-     "max": 5.7,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Uliana-crypto",
      "b": "Alexandratrues",
      "avg": 2.8,
      "max": 3.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "noktoskazal2",
+     "b": "rnat200",
+     "avg": 2.8,
+     "max": 3.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "IskanderAndreevich",
+     "b": "abrikossik",
+     "avg": 2.8,
+     "max": 9.4,
      "lab": "lab-01"
     },
     {
@@ -332,10 +339,10 @@
      "lab": "lab-01"
     },
     {
-     "a": "rnat200",
-     "b": "Uliana-crypto",
+     "a": "Uliana-crypto",
+     "b": "S0meb0dyQwQ",
      "avg": 2.8,
-     "max": 4.1,
+     "max": 3.7,
      "lab": "lab-01"
     },
     {
@@ -346,10 +353,10 @@
      "lab": "lab-01"
     },
     {
-     "a": "IskanderAndreevich",
-     "b": "abrikossik",
-     "avg": 2.7,
-     "max": 9.4,
+     "a": "Ksenia753726",
+     "b": "S0meb0dyQwQ",
+     "avg": 2.8,
+     "max": 5.7,
      "lab": "lab-01"
     },
     {
@@ -357,6 +364,13 @@
      "b": "Alexandratrues",
      "avg": 2.7,
      "max": 3.3,
+     "lab": "lab-01"
+    },
+    {
+     "a": "rnat200",
+     "b": "Uliana-crypto",
+     "avg": 2.7,
+     "max": 3.7,
      "lab": "lab-01"
     },
     {
@@ -374,10 +388,10 @@
      "lab": "lab-01"
     },
     {
-     "a": "sivct",
-     "b": "S0meb0dyQwQ",
+     "a": "abrikossik",
+     "b": "Ksenia753726",
      "avg": 2.6,
-     "max": 8.8,
+     "max": 3.1,
      "lab": "lab-01"
     },
     {
@@ -388,10 +402,10 @@
      "lab": "lab-01"
     },
     {
-     "a": "abrikossik",
-     "b": "rnat200",
-     "avg": 2.4,
-     "max": 2.8,
+     "a": "sivct",
+     "b": "S0meb0dyQwQ",
+     "avg": 2.5,
+     "max": 8.8,
      "lab": "lab-01"
     },
     {
@@ -402,17 +416,24 @@
      "lab": "lab-01"
     },
     {
-     "a": "Alexandratrues",
-     "b": "S0meb0dyQwQ",
-     "avg": 2.4,
-     "max": 2.9,
+     "a": "abrikossik",
+     "b": "rnat200",
+     "avg": 2.3,
+     "max": 2.8,
      "lab": "lab-01"
     },
     {
-     "a": "rnat200",
-     "b": "1ZV1",
+     "a": "Dzianef",
+     "b": "abrikossik",
      "avg": 2.3,
-     "max": 2.5,
+     "max": 5.9,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Alexandratrues",
+     "b": "S0meb0dyQwQ",
+     "avg": 2.3,
+     "max": 2.9,
      "lab": "lab-01"
     },
     {
@@ -423,20 +444,6 @@
      "lab": "lab-01"
     },
     {
-     "a": "Dzianef",
-     "b": "abrikossik",
-     "avg": 2.2,
-     "max": 5.9,
-     "lab": "lab-01"
-    },
-    {
-     "a": "rnat200",
-     "b": "neEclipsepahaet",
-     "avg": 2.2,
-     "max": 2.9,
-     "lab": "lab-01"
-    },
-    {
      "a": "neEclipsepahaet",
      "b": "Alexandratrues",
      "avg": 2.2,
@@ -444,31 +451,17 @@
      "lab": "lab-01"
     },
     {
+     "a": "rnat200",
+     "b": "neEclipsepahaet",
+     "avg": 2.1,
+     "max": 2.7,
+     "lab": "lab-01"
+    },
+    {
      "a": "zxczhulik",
      "b": "neEclipsepahaet",
      "avg": 2.1,
      "max": 2.2,
-     "lab": "lab-01"
-    },
-    {
-     "a": "noktoskazal2",
-     "b": "Moysha228",
-     "avg": 2.1,
-     "max": 2.3,
-     "lab": "lab-01"
-    },
-    {
-     "a": "rnat200",
-     "b": "S0meb0dyQwQ",
-     "avg": 2.0,
-     "max": 4.1,
-     "lab": "lab-01"
-    },
-    {
-     "a": "sivct",
-     "b": "rnat200",
-     "avg": 2.0,
-     "max": 2.9,
      "lab": "lab-01"
     },
     {
@@ -486,10 +479,17 @@
      "lab": "lab-01"
     },
     {
-     "a": "neEclipsepahaet",
+     "a": "noktoskazal2",
+     "b": "Moysha228",
+     "avg": 1.9,
+     "max": 2.3,
+     "lab": "lab-01"
+    },
+    {
+     "a": "rnat200",
      "b": "S0meb0dyQwQ",
      "avg": 1.9,
-     "max": 2.7,
+     "max": 3.7,
      "lab": "lab-01"
     },
     {
@@ -497,6 +497,20 @@
      "b": "Alexandratrues",
      "avg": 1.9,
      "max": 16.1,
+     "lab": "lab-01"
+    },
+    {
+     "a": "sivct",
+     "b": "rnat200",
+     "avg": 1.9,
+     "max": 2.9,
+     "lab": "lab-01"
+    },
+    {
+     "a": "neEclipsepahaet",
+     "b": "S0meb0dyQwQ",
+     "avg": 1.9,
+     "max": 2.7,
      "lab": "lab-01"
     },
     {
@@ -535,23 +549,9 @@
      "lab": "lab-01"
     },
     {
-     "a": "abrikossik",
-     "b": "S0meb0dyQwQ",
-     "avg": 1.7,
-     "max": 4.1,
-     "lab": "lab-01"
-    },
-    {
      "a": "1ZV1",
      "b": "neEclipsepahaet",
      "avg": 1.7,
-     "max": 2.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Moysha228",
-     "b": "neEclipsepahaet",
-     "avg": 1.6,
      "max": 2.0,
      "lab": "lab-01"
     },
@@ -563,10 +563,31 @@
      "lab": "lab-01"
     },
     {
+     "a": "VityaRolex",
+     "b": "Uliana-crypto",
+     "avg": 1.6,
+     "max": 2.7,
+     "lab": "lab-01"
+    },
+    {
+     "a": "abrikossik",
+     "b": "S0meb0dyQwQ",
+     "avg": 1.6,
+     "max": 4.3,
+     "lab": "lab-01"
+    },
+    {
      "a": "Ksenia753726",
      "b": "tr-lgtm",
      "avg": 1.6,
      "max": 2.1,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Moysha228",
+     "b": "neEclipsepahaet",
+     "avg": 1.5,
+     "max": 1.7,
      "lab": "lab-01"
     },
     {
@@ -577,27 +598,6 @@
      "lab": "lab-01"
     },
     {
-     "a": "sivct",
-     "b": "Moysha228",
-     "avg": 1.5,
-     "max": 2.4,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Mauser-28",
-     "b": "rnat200",
-     "avg": 1.4,
-     "max": 2.2,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Dzianef",
-     "b": "S0meb0dyQwQ",
-     "avg": 1.4,
-     "max": 12.3,
-     "lab": "lab-01"
-    },
-    {
      "a": "Dzianef",
      "b": "neEclipsepahaet",
      "avg": 1.4,
@@ -605,17 +605,17 @@
      "lab": "lab-01"
     },
     {
-     "a": "Moysha228",
-     "b": "Alexandratrues",
-     "avg": 1.3,
-     "max": 1.9,
+     "a": "VityaRolex",
+     "b": "Ksenia753726",
+     "avg": 1.4,
+     "max": 1.5,
      "lab": "lab-01"
     },
     {
-     "a": "IskanderAndreevich",
-     "b": "S0meb0dyQwQ",
+     "a": "Mauser-28",
+     "b": "rnat200",
      "avg": 1.3,
-     "max": 16.1,
+     "max": 2.2,
      "lab": "lab-01"
     },
     {
@@ -623,6 +623,20 @@
      "b": "tr-lgtm",
      "avg": 1.3,
      "max": 1.4,
+     "lab": "lab-01"
+    },
+    {
+     "a": "sivct",
+     "b": "Moysha228",
+     "avg": 1.3,
+     "max": 2.4,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Dzianef",
+     "b": "S0meb0dyQwQ",
+     "avg": 1.3,
+     "max": 12.3,
      "lab": "lab-01"
     },
     {
@@ -640,6 +654,20 @@
      "lab": "lab-01"
     },
     {
+     "a": "Moysha228",
+     "b": "Alexandratrues",
+     "avg": 1.3,
+     "max": 1.6,
+     "lab": "lab-01"
+    },
+    {
+     "a": "IskanderAndreevich",
+     "b": "S0meb0dyQwQ",
+     "avg": 1.3,
+     "max": 16.1,
+     "lab": "lab-01"
+    },
+    {
      "a": "Dzianef",
      "b": "Uliana-crypto",
      "avg": 1.3,
@@ -654,17 +682,17 @@
      "lab": "lab-01"
     },
     {
-     "a": "tr-lgtm",
-     "b": "Uliana-crypto",
-     "avg": 1.2,
-     "max": 1.3,
-     "lab": "lab-01"
-    },
-    {
      "a": "abrikossik",
      "b": "noktoskazal2",
      "avg": 1.2,
      "max": 1.4,
+     "lab": "lab-01"
+    },
+    {
+     "a": "tr-lgtm",
+     "b": "Uliana-crypto",
+     "avg": 1.2,
+     "max": 1.3,
      "lab": "lab-01"
     },
     {
@@ -682,17 +710,10 @@
      "lab": "lab-01"
     },
     {
-     "a": "abrikossik",
-     "b": "Ksenia753726",
-     "avg": 1.2,
-     "max": 1.4,
-     "lab": "lab-01"
-    },
-    {
      "a": "VityaRolex",
-     "b": "zxczhulik",
+     "b": "Moysha228",
      "avg": 1.1,
-     "max": 2.7,
+     "max": 1.5,
      "lab": "lab-01"
     },
     {
@@ -710,10 +731,10 @@
      "lab": "lab-01"
     },
     {
-     "a": "Moysha228",
-     "b": "S0meb0dyQwQ",
+     "a": "VityaRolex",
+     "b": "s4pphireee",
      "avg": 1.0,
-     "max": 1.9,
+     "max": 1.4,
      "lab": "lab-01"
     },
     {
@@ -731,17 +752,17 @@
      "lab": "lab-01"
     },
     {
-     "a": "VityaRolex",
-     "b": "Uliana-crypto",
-     "avg": 1.0,
-     "max": 3.0,
-     "lab": "lab-01"
-    },
-    {
      "a": "abrikossik",
      "b": "s4pphireee",
      "avg": 1.0,
      "max": 1.4,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Moysha228",
+     "b": "S0meb0dyQwQ",
+     "avg": 1.0,
+     "max": 1.6,
      "lab": "lab-01"
     },
     {
@@ -752,8 +773,22 @@
      "lab": "lab-01"
     },
     {
+     "a": "VityaRolex",
+     "b": "zxczhulik",
+     "avg": 0.9,
+     "max": 1.3,
+     "lab": "lab-01"
+    },
+    {
      "a": "abrikossik",
      "b": "neEclipsepahaet",
+     "avg": 0.9,
+     "max": 1.4,
+     "lab": "lab-01"
+    },
+    {
+     "a": "abrikossik",
+     "b": "tr-lgtm",
      "avg": 0.9,
      "max": 1.4,
      "lab": "lab-01"
@@ -767,23 +802,16 @@
     },
     {
      "a": "abrikossik",
-     "b": "tr-lgtm",
-     "avg": 0.9,
-     "max": 1.4,
-     "lab": "lab-01"
-    },
-    {
-     "a": "abrikossik",
      "b": "Uliana-crypto",
      "avg": 0.9,
      "max": 1.5,
      "lab": "lab-01"
     },
     {
-     "a": "Moysha228",
-     "b": "s4pphireee",
+     "a": "VityaRolex",
+     "b": "S0meb0dyQwQ",
      "avg": 0.8,
-     "max": 0.9,
+     "max": 2.1,
      "lab": "lab-01"
     },
     {
@@ -795,23 +823,9 @@
     },
     {
      "a": "Moysha228",
-     "b": "zxczhulik",
+     "b": "s4pphireee",
      "avg": 0.8,
-     "max": 0.9,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Negati8",
-     "b": "S0meb0dyQwQ",
-     "avg": 0.8,
-     "max": 6.5,
-     "lab": "lab-01"
-    },
-    {
-     "a": "1ZV1",
-     "b": "S0meb0dyQwQ",
-     "avg": 0.8,
-     "max": 1.4,
+     "max": 0.8,
      "lab": "lab-01"
     },
     {
@@ -819,6 +833,27 @@
      "b": "tr-lgtm",
      "avg": 0.7,
      "max": 0.8,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Moysha228",
+     "b": "zxczhulik",
+     "avg": 0.7,
+     "max": 0.8,
+     "lab": "lab-01"
+    },
+    {
+     "a": "1ZV1",
+     "b": "S0meb0dyQwQ",
+     "avg": 0.7,
+     "max": 1.4,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Negati8",
+     "b": "S0meb0dyQwQ",
+     "avg": 0.7,
+     "max": 6.5,
      "lab": "lab-01"
     },
     {
@@ -892,13 +927,6 @@
      "lab": "lab-01"
     },
     {
-     "a": "VityaRolex",
-     "b": "Moysha228",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
      "a": "Mauser-28",
      "b": "zxczhulik",
      "avg": 0.0,
@@ -1074,8 +1102,8 @@
      "lab": "lab-01"
     },
     {
-     "a": "VityaRolex",
-     "b": "abrikossik",
+     "a": "abrikossik",
+     "b": "VityaRolex",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
@@ -1137,8 +1165,8 @@
      "lab": "lab-01"
     },
     {
-     "a": "VityaRolex",
-     "b": "Mauser-28",
+     "a": "Mauser-28",
+     "b": "VityaRolex",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
@@ -1166,42 +1194,14 @@
     },
     {
      "a": "VityaRolex",
-     "b": "s4pphireee",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "VityaRolex",
      "b": "Alexandratrues",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
     },
     {
-     "a": "VityaRolex",
-     "b": "S0meb0dyQwQ",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "VityaRolex",
-     "b": "Ksenia753726",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "VityaRolex",
-     "b": "sivct",
-     "avg": 0.0,
-     "max": 0.0,
-     "lab": "lab-01"
-    },
-    {
-     "a": "VityaRolex",
-     "b": "neEclipsepahaet",
+     "a": "sivct",
+     "b": "VityaRolex",
      "avg": 0.0,
      "max": 0.0,
      "lab": "lab-01"
