@@ -5,7 +5,14 @@ from datetime import datetime
 
 from githubkit import GitHub
 
-from .config import LAB_BRANCH_RE, REVIEW_MARKS
+LAB_BRANCH_RE = re.compile(r"^lab-[0-9]{2}([-.].*)?$")
+
+REVIEW_MARKS = {
+    "APPROVED": "✅ approved",
+    "CHANGES_REQUESTED": "🔄 changes",
+    "COMMENTED": "💬 commented",
+    "DISMISSED": "🚫 dismissed",
+}
 
 
 def checks_status(runs) -> str:

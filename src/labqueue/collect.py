@@ -4,8 +4,8 @@ from datetime import datetime
 
 from githubkit import GitHub
 
-from .config import LAB_BRANCH_RE
 from .gh import (
+    LAB_BRANCH_RE,
     checks_status,
     commit_is_teacher,
     commit_line_stats,

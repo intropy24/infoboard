@@ -6,15 +6,18 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from datetime import UTC, datetime
+from pathlib import Path
 
 from githubkit import GitHub
 from githubkit.exception import RateLimitExceeded, RequestFailed, RequestTimeout
 
 from . import __doc__ as PKG_DOC
 from .collect import collect_student
-from .config import EVENTS_CACHE_PATH, STATS_CACHE_PATH
 from .model import QueueItem, StudentStats
 from .report import report, report_md
+
+EVENTS_CACHE_PATH = Path(__file__).resolve().parent.parent / "events-cache.json"
+STATS_CACHE_PATH = Path(__file__).resolve().parent.parent / "commit-stats-cache.json"
 
 
 def main(settings_cls: type, iter_repos: Callable) -> None:

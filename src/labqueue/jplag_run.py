@@ -15,7 +15,6 @@ from pathlib import Path
 
 import httpx
 from githubkit import GitHub
-from githubkit.exception import RequestFailed, RequestTimeout
 
 from .config import JPLAG_SUMMARY_PATH, MSK
 
