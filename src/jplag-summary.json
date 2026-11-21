@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-11-20T06:59+00:00",
- "checked": "20.11.2026 09:59",
+ "generated_at": "2026-11-21T06:55+00:00",
+ "checked": "21.11.2026 09:55",
  "min_sim": 80.0,
  "jplag": "6.3.0",
  "failed": 0,
@@ -35,6 +35,13 @@
      "b": "1ZV1",
      "avg": 7.6,
      "max": 11.3,
+     "lab": "lab-01"
+    },
+    {
+     "a": "zxczhulik",
+     "b": "S0meb0dyQwQ",
+     "avg": 7.0,
+     "max": 8.3,
      "lab": "lab-01"
     },
     {
@@ -80,13 +87,6 @@
      "lab": "lab-01"
     },
     {
-     "a": "zxczhulik",
-     "b": "S0meb0dyQwQ",
-     "avg": 5.9,
-     "max": 7.3,
-     "lab": "lab-01"
-    },
-    {
      "a": "sivct",
      "b": "tr-lgtm",
      "avg": 5.8,
@@ -96,7 +96,7 @@
     {
      "a": "Uliana-crypto",
      "b": "zxczhulik",
-     "avg": 5.6,
+     "avg": 5.4,
      "max": 6.1,
      "lab": "lab-01"
     },
@@ -122,13 +122,6 @@
      "lab": "lab-01"
     },
     {
-     "a": "neEclipsepahaet",
-     "b": "zxczhulik",
-     "avg": 4.9,
-     "max": 5.2,
-     "lab": "lab-01"
-    },
-    {
      "a": "rnat200",
      "b": "Ksenia753726",
      "avg": 4.8,
@@ -140,6 +133,13 @@
      "b": "Alexandratrues",
      "avg": 4.8,
      "max": 7.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "neEclipsepahaet",
+     "b": "zxczhulik",
+     "avg": 4.7,
+     "max": 5.2,
      "lab": "lab-01"
     },
     {
@@ -228,13 +228,6 @@
     },
     {
      "a": "noktoskazal2",
-     "b": "zxczhulik",
-     "avg": 4.1,
-     "max": 6.4,
-     "lab": "lab-01"
-    },
-    {
-     "a": "noktoskazal2",
      "b": "neEclipsepahaet",
      "avg": 4.0,
      "max": 5.9,
@@ -252,6 +245,13 @@
      "b": "Moysha228",
      "avg": 3.9,
      "max": 4.2,
+     "lab": "lab-01"
+    },
+    {
+     "a": "noktoskazal2",
+     "b": "zxczhulik",
+     "avg": 3.9,
+     "max": 6.4,
      "lab": "lab-01"
     },
     {
@@ -320,7 +320,7 @@
     {
      "a": "Alexandratrues",
      "b": "zxczhulik",
-     "avg": 3.5,
+     "avg": 3.4,
      "max": 3.9,
      "lab": "lab-01"
     },
@@ -402,13 +402,6 @@
      "lab": "lab-01"
     },
     {
-     "a": "Moysha228",
-     "b": "zxczhulik",
-     "avg": 2.4,
-     "max": 3.0,
-     "lab": "lab-01"
-    },
-    {
      "a": "1ZV1",
      "b": "tr-lgtm",
      "avg": 2.4,
@@ -430,20 +423,6 @@
      "lab": "lab-01"
     },
     {
-     "a": "Negati8",
-     "b": "zxczhulik",
-     "avg": 2.4,
-     "max": 19.4,
-     "lab": "lab-01"
-    },
-    {
-     "a": "tr-lgtm",
-     "b": "zxczhulik",
-     "avg": 2.4,
-     "max": 3.2,
-     "lab": "lab-01"
-    },
-    {
      "a": "s4pphireee",
      "b": "Uliana-crypto",
      "avg": 2.4,
@@ -455,6 +434,13 @@
      "b": "noktoskazal2",
      "avg": 2.3,
      "max": 4.2,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Moysha228",
+     "b": "zxczhulik",
+     "avg": 2.3,
+     "max": 3.0,
      "lab": "lab-01"
     },
     {
@@ -479,6 +465,13 @@
      "lab": "lab-01"
     },
     {
+     "a": "tr-lgtm",
+     "b": "zxczhulik",
+     "avg": 2.3,
+     "max": 3.2,
+     "lab": "lab-01"
+    },
+    {
      "a": "1ZV1",
      "b": "rnat200",
      "avg": 2.2,
@@ -490,6 +483,13 @@
      "b": "noktoskazal2",
      "avg": 2.2,
      "max": 2.3,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Negati8",
+     "b": "zxczhulik",
+     "avg": 2.2,
+     "max": 19.4,
      "lab": "lab-01"
     },
     {
@@ -514,13 +514,6 @@
      "lab": "lab-01"
     },
     {
-     "a": "s4pphireee",
-     "b": "zxczhulik",
-     "avg": 2.1,
-     "max": 3.3,
-     "lab": "lab-01"
-    },
-    {
      "a": "abrikossik",
      "b": "rnat200",
      "avg": 2.1,
@@ -532,13 +525,6 @@
      "b": "Ksenia753726",
      "avg": 2.1,
      "max": 2.4,
-     "lab": "lab-01"
-    },
-    {
-     "a": "rnat200",
-     "b": "zxczhulik",
-     "avg": 2.1,
-     "max": 3.4,
      "lab": "lab-01"
     },
     {
@@ -556,9 +542,23 @@
      "lab": "lab-01"
     },
     {
-     "a": "Ksenia753726",
+     "a": "s4pphireee",
      "b": "zxczhulik",
      "avg": 2.0,
+     "max": 3.3,
+     "lab": "lab-01"
+    },
+    {
+     "a": "rnat200",
+     "b": "zxczhulik",
+     "avg": 2.0,
+     "max": 3.4,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Ksenia753726",
+     "b": "zxczhulik",
+     "avg": 1.9,
      "max": 2.1,
      "lab": "lab-01"
     },
@@ -696,17 +696,17 @@
      "lab": "lab-01"
     },
     {
-     "a": "sivct",
-     "b": "zxczhulik",
-     "avg": 1.3,
-     "max": 4.4,
-     "lab": "lab-01"
-    },
-    {
      "a": "abrikossik",
      "b": "neEclipsepahaet",
      "avg": 1.3,
      "max": 3.0,
+     "lab": "lab-01"
+    },
+    {
+     "a": "sivct",
+     "b": "zxczhulik",
+     "avg": 1.2,
+     "max": 4.4,
      "lab": "lab-01"
     },
     {
@@ -822,17 +822,17 @@
      "lab": "lab-01"
     },
     {
-     "a": "1ZV1",
-     "b": "zxczhulik",
-     "avg": 0.8,
-     "max": 1.6,
-     "lab": "lab-01"
-    },
-    {
      "a": "Negati8",
      "b": "Alexandratrues",
      "avg": 0.8,
      "max": 5.6,
+     "lab": "lab-01"
+    },
+    {
+     "a": "1ZV1",
+     "b": "zxczhulik",
+     "avg": 0.8,
+     "max": 1.6,
      "lab": "lab-01"
     },
     {
@@ -871,13 +871,6 @@
      "lab": "lab-01"
     },
     {
-     "a": "asdd1331",
-     "b": "zxczhulik",
-     "avg": 0.7,
-     "max": 19.7,
-     "lab": "lab-01"
-    },
-    {
      "a": "abrikossik",
      "b": "Uliana-crypto",
      "avg": 0.7,
@@ -892,17 +885,10 @@
      "lab": "lab-01"
     },
     {
-     "a": "Dzianef",
+     "a": "asdd1331",
      "b": "zxczhulik",
      "avg": 0.7,
-     "max": 5.9,
-     "lab": "lab-01"
-    },
-    {
-     "a": "IskanderAndreevich",
-     "b": "zxczhulik",
-     "avg": 0.7,
-     "max": 3.7,
+     "max": 19.7,
      "lab": "lab-01"
     },
     {
@@ -927,17 +913,24 @@
      "lab": "lab-01"
     },
     {
+     "a": "Dzianef",
+     "b": "zxczhulik",
+     "avg": 0.6,
+     "max": 5.9,
+     "lab": "lab-01"
+    },
+    {
+     "a": "IskanderAndreevich",
+     "b": "zxczhulik",
+     "avg": 0.6,
+     "max": 3.7,
+     "lab": "lab-01"
+    },
+    {
      "a": "Mauser-28",
      "b": "Uliana-crypto",
      "avg": 0.6,
      "max": 0.9,
-     "lab": "lab-01"
-    },
-    {
-     "a": "abrikossik",
-     "b": "zxczhulik",
-     "avg": 0.6,
-     "max": 1.4,
      "lab": "lab-01"
     },
     {
@@ -959,6 +952,13 @@
      "b": "S0meb0dyQwQ",
      "avg": 0.5,
      "max": 6.5,
+     "lab": "lab-01"
+    },
+    {
+     "a": "abrikossik",
+     "b": "zxczhulik",
+     "avg": 0.5,
+     "max": 1.4,
      "lab": "lab-01"
     },
     {
