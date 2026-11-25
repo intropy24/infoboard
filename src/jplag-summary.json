@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-11-24T09:42+00:00",
- "checked": "24.11.2026 12:42",
+ "generated_at": "2026-11-25T08:15+00:00",
+ "checked": "25.11.2026 11:15",
  "min_sim": 80.0,
  "jplag": "6.3.0",
  "failed": 0,
@@ -40,8 +40,8 @@
     {
      "a": "Uliana-crypto",
      "b": "zxczhulik",
-     "avg": 7.3,
-     "max": 7.7,
+     "avg": 7.1,
+     "max": 7.2,
      "lab": "lab-01"
     },
     {
@@ -59,16 +59,16 @@
      "lab": "lab-01"
     },
     {
-     "a": "Uliana-crypto",
-     "b": "Ksenia753726",
-     "avg": 6.8,
-     "max": 7.6,
-     "lab": "lab-01"
-    },
-    {
      "a": "rnat200",
      "b": "s4pphireee",
      "avg": 6.8,
+     "max": 7.1,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Uliana-crypto",
+     "b": "Ksenia753726",
+     "avg": 6.6,
      "max": 7.1,
      "lab": "lab-01"
     },
@@ -101,17 +101,17 @@
      "lab": "lab-01"
     },
     {
-     "a": "Uliana-crypto",
-     "b": "S0meb0dyQwQ",
-     "avg": 5.8,
-     "max": 7.2,
-     "lab": "lab-01"
-    },
-    {
      "a": "sivct",
      "b": "tr-lgtm",
      "avg": 5.8,
      "max": 12.1,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Uliana-crypto",
+     "b": "S0meb0dyQwQ",
+     "avg": 5.7,
+     "max": 6.7,
      "lab": "lab-01"
     },
     {
@@ -262,13 +262,6 @@
      "lab": "lab-01"
     },
     {
-     "a": "neEclipsepahaet",
-     "b": "Uliana-crypto",
-     "avg": 4.0,
-     "max": 4.3,
-     "lab": "lab-01"
-    },
-    {
      "a": "sivct",
      "b": "s4pphireee",
      "avg": 4.0,
@@ -276,10 +269,10 @@
      "lab": "lab-01"
     },
     {
-     "a": "sivct",
+     "a": "neEclipsepahaet",
      "b": "Uliana-crypto",
      "avg": 3.8,
-     "max": 13.0,
+     "max": 4.3,
      "lab": "lab-01"
     },
     {
@@ -332,6 +325,13 @@
      "lab": "lab-01"
     },
     {
+     "a": "sivct",
+     "b": "Uliana-crypto",
+     "avg": 3.6,
+     "max": 13.0,
+     "lab": "lab-01"
+    },
+    {
      "a": "tr-lgtm",
      "b": "Moysha228",
      "avg": 3.5,
@@ -357,6 +357,13 @@
      "b": "zxczhulik",
      "avg": 3.2,
      "max": 3.9,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Alexandratrues",
+     "b": "Uliana-crypto",
+     "avg": 3.2,
+     "max": 3.8,
      "lab": "lab-01"
     },
     {
@@ -402,24 +409,17 @@
      "lab": "lab-01"
     },
     {
-     "a": "Alexandratrues",
-     "b": "Uliana-crypto",
-     "avg": 3.0,
-     "max": 3.4,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Negati8",
-     "b": "Uliana-crypto",
-     "avg": 2.8,
-     "max": 5.2,
-     "lab": "lab-01"
-    },
-    {
      "a": "Negati8",
      "b": "Alexandratrues",
      "avg": 2.7,
      "max": 4.3,
+     "lab": "lab-01"
+    },
+    {
+     "a": "Negati8",
+     "b": "Uliana-crypto",
+     "avg": 2.7,
+     "max": 5.2,
      "lab": "lab-01"
     },
     {
@@ -437,17 +437,17 @@
      "lab": "lab-01"
     },
     {
-     "a": "1ZV1",
-     "b": "Uliana-crypto",
-     "avg": 2.6,
-     "max": 4.5,
-     "lab": "lab-01"
-    },
-    {
      "a": "IskanderAndreevich",
      "b": "s4pphireee",
      "avg": 2.5,
      "max": 7.3,
+     "lab": "lab-01"
+    },
+    {
+     "a": "1ZV1",
+     "b": "Uliana-crypto",
+     "avg": 2.4,
+     "max": 4.5,
      "lab": "lab-01"
     },
     {
@@ -460,6 +460,13 @@
     {
      "a": "sivct",
      "b": "noktoskazal2",
+     "avg": 2.3,
+     "max": 4.2,
+     "lab": "lab-01"
+    },
+    {
+     "a": "rnat200",
+     "b": "Uliana-crypto",
      "avg": 2.3,
      "max": 4.2,
      "lab": "lab-01"
@@ -486,13 +493,6 @@
      "lab": "lab-01"
     },
     {
-     "a": "noktoskazal2",
-     "b": "Uliana-crypto",
-     "avg": 2.3,
-     "max": 3.7,
-     "lab": "lab-01"
-    },
-    {
      "a": "1ZV1",
      "b": "tr-lgtm",
      "avg": 2.3,
@@ -504,6 +504,13 @@
      "b": "noktoskazal2",
      "avg": 2.2,
      "max": 2.3,
+     "lab": "lab-01"
+    },
+    {
+     "a": "noktoskazal2",
+     "b": "Uliana-crypto",
+     "avg": 2.2,
+     "max": 3.7,
      "lab": "lab-01"
     },
     {
@@ -558,8 +565,8 @@
     {
      "a": "s4pphireee",
      "b": "Uliana-crypto",
-     "avg": 2.1,
-     "max": 3.3,
+     "avg": 2.0,
+     "max": 3.4,
      "lab": "lab-01"
     },
     {
@@ -567,13 +574,6 @@
      "b": "neEclipsepahaet",
      "avg": 2.0,
      "max": 3.2,
-     "lab": "lab-01"
-    },
-    {
-     "a": "Moysha228",
-     "b": "Uliana-crypto",
-     "avg": 1.9,
-     "max": 2.2,
      "lab": "lab-01"
     },
     {
@@ -598,10 +598,10 @@
      "lab": "lab-01"
     },
     {
-     "a": "rnat200",
+     "a": "Moysha228",
      "b": "Uliana-crypto",
      "avg": 1.9,
-     "max": 3.2,
+     "max": 2.2,
      "lab": "lab-01"
     },
     {
@@ -724,13 +724,6 @@
      "lab": "lab-01"
     },
     {
-     "a": "tr-lgtm",
-     "b": "Uliana-crypto",
-     "avg": 1.4,
-     "max": 1.9,
-     "lab": "lab-01"
-    },
-    {
      "a": "Mauser-28",
      "b": "1ZV1",
      "avg": 1.3,
@@ -749,6 +742,13 @@
      "b": "neEclipsepahaet",
      "avg": 1.3,
      "max": 1.4,
+     "lab": "lab-01"
+    },
+    {
+     "a": "tr-lgtm",
+     "b": "Uliana-crypto",
+     "avg": 1.3,
+     "max": 1.9,
      "lab": "lab-01"
     },
     {
@@ -780,13 +780,6 @@
      "lab": "lab-01"
     },
     {
-     "a": "VityaRolex",
-     "b": "Uliana-crypto",
-     "avg": 1.2,
-     "max": 2.8,
-     "lab": "lab-01"
-    },
-    {
      "a": "noktoskazal2",
      "b": "Moysha228",
      "avg": 1.2,
@@ -805,6 +798,13 @@
      "b": "zxczhulik",
      "avg": 1.2,
      "max": 4.4,
+     "lab": "lab-01"
+    },
+    {
+     "a": "VityaRolex",
+     "b": "Uliana-crypto",
+     "avg": 1.1,
+     "max": 2.8,
      "lab": "lab-01"
     },
     {
@@ -934,13 +934,6 @@
      "lab": "lab-01"
     },
     {
-     "a": "IskanderAndreevich",
-     "b": "Uliana-crypto",
-     "avg": 0.6,
-     "max": 3.7,
-     "lab": "lab-01"
-    },
-    {
      "a": "VityaRolex",
      "b": "S0meb0dyQwQ",
      "avg": 0.6,
@@ -962,10 +955,10 @@
      "lab": "lab-01"
     },
     {
-     "a": "abrikossik",
+     "a": "IskanderAndreevich",
      "b": "Uliana-crypto",
      "avg": 0.6,
-     "max": 1.5,
+     "max": 3.7,
      "lab": "lab-01"
     },
     {
@@ -980,6 +973,13 @@
      "b": "zxczhulik",
      "avg": 0.6,
      "max": 3.7,
+     "lab": "lab-01"
+    },
+    {
+     "a": "abrikossik",
+     "b": "Uliana-crypto",
+     "avg": 0.6,
+     "max": 1.5,
      "lab": "lab-01"
     },
     {
